@@ -1,0 +1,27 @@
+!.gitkeep
+bin/
+build/
+bower_components/
+node_modules/
+# only export the dist folder to npm (src is in git)
+spec/
+src/
+tmp/
+**/*.log
+**/*.tgz
+
+# everything in node_modules is ignored by default,
+# except for bundled dependencies.
+# the following files are also excluded by default:
+# .*.swp
+# ._*
+# .DS_Store
+# .git
+# .hg
+# .npmrc
+# .lock-wscript
+# .svn
+# .wafpickle-*
+# config.gypi
+# CVS
+# npm-debug.log

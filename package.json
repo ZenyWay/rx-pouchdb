@@ -1,0 +1,90 @@
+{
+  "name": "rx-pouchdb",
+  "version": "0.0.1",
+  "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
+  "main": "dist",
+  "browser": "dist/bundle.js",
+  "scripts": {
+    "prepublish": "npm run dist",
+    "predist": "mkdirp dist && rimraf dist/*",
+    "dist": "npm run build && cpx \"build/**/*\" dist && npm run bundle",
+    "prebuild": "mkdirp build && rimraf build/*",
+    "build": "tsc -p src -outDir build",
+    "bundle": "browserify dist/index.js > dist/bundle.js",
+    "example": "npm run dist && npm run example:bundle && npm run example:serve",
+    "example:serve": "http-server -c-1 -i -e html -o -p 6510 spec/example",
+    "preexample:bundle": "rimraf spec/example/*.js",
+    "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -o spec/example/index.js",
+    "pretest": "mkdirp spec/reports && rimraf spec/reports/*",
+    "test": "karma start spec/karma.conf.js --single-run",
+    "test:debug": "karma start spec/karma.conf.js --no-single-run",
+    "pretest:coverage": "mkdirp spec/reports/coverage && rimraf spec/reports/coverage",
+    "test:coverage:serve": "http-server -c-1 -o -p 6510 spec/reports/coverage",
+    "test:coverage": "karma start spec/karma-coverage.conf.js --single-run && remap-istanbul -i spec/reports/coverage/chrom*/coverage.json -o spec/reports/coverage -t html && npm run test:coverage:serve",
+    "pretest:ci": "mkdirp spec/reports/coverage && rimraf spec/reports/coverage",
+    "test:ci:coveralls": "cat spec/reports/coverage/lcov.info | sed -e 's/SF:\\.\\.\\/\\.\\.\\//SF:/' | coveralls",
+    "test:ci": "karma start spec/karma-coverage.conf.js --single-run && remap-istanbul -i spec/reports/coverage/chrom*/coverage.json -o spec/reports/coverage/lcov.info -t lcovonly",
+    "test:web:serve": "http-server -c-1 -o -p 6510 spec/web",
+    "test:web": "browserify spec/*.spec.ts -p [ tsify --project spec ] -t uglifyify --exclude bluebird --exclude debug -o spec/web/index.spec.js && npm run test:web:serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zenyway/rx-pouchdb.git"
+  },
+  "keywords": [
+    "pouchDB",
+    "rxjs",
+    "read",
+    "write",
+    "functional",
+    "operator"
+  ],
+  "author": {
+    "name": "Stephane M. Catala",
+    "email": "stephane@zenyway.com"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/zenyway/rx-pouchdb/issues"
+  },
+  "homepage": "https://github.com/zenyway/rx-pouchdb#readme",
+  "dependencies": {
+    "@reactivex/rxjs": "^5.0.0-beta.11",
+    "@types/bluebird": "^2.0.30",
+    "@types/debug": "0.0.28",
+    "bluebird": "^3.4.1",
+    "debug": "^2.2.0",
+    "pouchdb-core": "^5.4.5",
+    "tslib": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/jasmine": "^2.2.31",
+    "@types/node": "^6.0.33",
+    "browserify": "^13.1.0",
+    "browserify-istanbul": "^2.0.0",
+    "coveralls": "^2.11.12",
+    "cpx": "^1.3.2",
+    "eslint": "^3.3.0",
+    "http-server": "^0.9.0",
+    "istanbul": "^0.4.4",
+    "jasmine-core": "^2.4.1",
+    "karma": "^1.2.0",
+    "karma-browserify": "^5.1.0",
+    "karma-chrome-launcher": "^1.0.1",
+    "karma-coverage": "^1.1.1",
+    "karma-firefox-launcher": "^1.0.0",
+    "karma-jasmine": "^1.0.2",
+    "karma-jasmine-html-reporter": "^0.2.1",
+    "karma-junit-reporter": "^1.1.0",
+    "karma-safari-launcher": "^1.0.0",
+    "karma-spec-reporter": "0.0.26",
+    "mkdirp": "^0.5.1",
+    "pouchdb-browser": "^5.4.5",
+    "remap-istanbul": "^0.6.4",
+    "rimraf": "^2.5.4",
+    "tsify": "^1.0.3",
+    "typescript": "^2.0.0",
+    "uglifyify": "^3.0.2",
+    "watchify": "^3.7.0"
+  }
+}
