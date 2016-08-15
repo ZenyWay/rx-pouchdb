@@ -14,14 +14,24 @@
 ;
 import getRxPouchDb from '../../src'
 import { Observable } from '@reactivex/rxjs'
+const Promise = require('bluebird')
 import * as debug from 'debug'
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
+
+debug.enable('*')
+PouchDB.debug.disable()
+console.clear()
 
 const db = Promise.try(() => new PouchDB('sids'))
 
 const specs = {
   db: db,
-  key: {} // TODO unlocked key pair
+  key: {}, // TODO unlocked key pair
+  opts: {
+    read: {
+      include_docs: true
+    }
+  }
 }
 const sids = getRxPouchDb(specs)
 
