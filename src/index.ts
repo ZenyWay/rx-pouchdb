@@ -12,8 +12,6 @@
  * Limitations under the License.
  */
 ;
-export interface OpgpKey {}// TODO import OpgpKey from 'opgp-service'
-
 import { Observable } from '@reactivex/rxjs'
 
 import assert = require('assert')
@@ -48,11 +46,6 @@ export interface RxPouchDbFactorySpec {
    * @prop {PouchDB} db the database to wrap
    */
   db: any // no valid PouchDB typings for TS2
-  /**
-   * @public
-   * @prop {OpgpKey} key pair
-   */
-  key: OpgpKey
   /**
    * @public
    * @prop {Object} opts? default options
@@ -338,7 +331,7 @@ export interface WriteOpts {
 class RxPouchDbClass implements RxPouchDb {
   static newInstance = <RxPouchDbFactory> function (spec: RxPouchDbFactorySpec):
   RxPouchDb {
-    assert(spec && spec.db && spec.key, 'invalid argument') // TODO complete invariant assertions
+    assert(spec && spec.db, 'invalid argument') // TODO complete invariant assertions
     const db = Observable.fromPromise(spec.db)
     const dbIoSpec = {
       read: assign({}, RxPouchDbClass.newInstance.defaults.read,
@@ -347,18 +340,17 @@ class RxPouchDbClass implements RxPouchDb {
         spec.opts && spec.opts.write)
     }
     const dbIo = newDbIo(dbIoSpec)
-    return new RxPouchDbClass(db, spec.key, dbIo)
+    return new RxPouchDbClass(db, dbIo)
   }
 
   write: <D extends VersionedDoc[]|VersionedDoc>
   (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => Observable<DocRef[]|DocRef>
 
-  read: <R extends (DocRef|DocId)[]|DocIdRange|DocRevs|(DocRef|DocId),
+  read: <R extends DocRef[]|DocIdRange|DocRevs|DocRef,
   D extends VersionedDoc|(VersionedDoc&DocRevStatus)>
   (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>) => Observable<D[]|D>
 
-  constructor (private db: Observable<any>, private key: OpgpKey,
-  private dbIo: DbIo) {}
+  constructor (private db: Observable<any>, private dbIo: DbIo) {}
 }
 
 RxPouchDbClass.prototype.write = rxDbIoFrom('write')
@@ -377,11 +369,12 @@ RxPouchDbClass.newInstance.defaults = {
 }
 
 function rxDbIoFrom (ioKey: 'write'|'read') {
-  return function <D extends DocRef[]|DocRef> (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
+  return function <D extends DocRef[]|DocRef>
+  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
     const _src = toObservable(src)
     .do(logRx('io:src'))
 
-    return this.db
+    return <Observable<DocRef[]|DocRef>> (<Observable<any>> this.db)
     .do(logRx('rx-pouchdb:db'))
     .switchMap((db: any) => _src.concatMap(this.dbIo[ioKey](db)))
     .do(logRx(`rx-pouchdb:rxDbIo.${ioKey}`))
