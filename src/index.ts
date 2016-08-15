@@ -341,10 +341,10 @@ class RxPouchDbClass implements RxPouchDb {
     assert(spec && spec.db && spec.key, 'invalid argument') // TODO complete invariant assertions
     const db = Observable.fromPromise(spec.db)
     const dbIoSpec = {
-      read: assign({}, spec.opts && spec.opts.read,
-        RxPouchDbClass.newInstance.defaults.read),
-      write: assign({}, spec.opts && spec.opts.write,
-        RxPouchDbClass.newInstance.defaults.write)
+      read: assign({}, RxPouchDbClass.newInstance.defaults.read,
+        spec.opts && spec.opts.read),
+      write: assign({}, RxPouchDbClass.newInstance.defaults.write,
+        spec.opts && spec.opts.write)
     }
     const dbIo = newDbIo(dbIoSpec)
     return new RxPouchDbClass(db, spec.key, dbIo)
