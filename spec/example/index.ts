@@ -13,9 +13,10 @@
  */
 ;
 import getRxPouchDb from '../../src'
-import { Observable } from '@reactivex/rxjs'
-const Promise = require('bluebird')
+import { logRx } from '../../src/utils'
 import * as debug from 'debug'
+import { Observable } from '@reactivex/rxjs'
+import Promise = require('bluebird')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 
 debug.enable('*')
@@ -54,15 +55,15 @@ const docs = [{
 
 // write docs to db
 const refs = sids.write(docs)
-.do(debug('write:next'), debug('write:error'), <any>debug('write:done'))
+.do(logRx('write'))
 
 // read docs from db
 sids.read(refs)
-.do(debug('read:next'), debug('read:error'), <any>debug('read:done'))
+.do(logRx('read'))
 .subscribe(undefined, () => destroy(db), () => destroy(db)) // finally
 
-function destroy (db: any) {
+function destroy (db: any): void {
   db.then((db: any) => Promise.try(db.destroy.bind(db)))
-  .then(debug('destroy:done'))
+  .tap(debug('destroy:done'))
   .catch(debug('destroy:err'))
 }
