@@ -398,15 +398,19 @@ RxPouchDbClass.newInstance.defaults = {
  */
 function createRxDbIoMethod (ioKey: 'write'|'read') {
   return function <D extends DocRef[]|DocRef>
-  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
+  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
     const _src = toObservable(src)
     .do(logRx('io:src'))
 
-    return <Observable<DocRef[]|DocRef>> (<Observable<any>> this.db)
+    return (<Observable<any>> this.db)
     .do(logRx('rx-pouchdb:db'))
-    .switchMap((db: any) => _src.concatMap(this.dbIo[ioKey](db)))
+    .switchMap((db: any) => _src.concatMap(<DbIoMethod> this.dbIo[ioKey](db)))
     .do(logRx(`rx-pouchdb:rxDbIo.${ioKey}`))
   }
+}
+
+interface DbIoMethod {
+  (src: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef>
 }
 
 /**
