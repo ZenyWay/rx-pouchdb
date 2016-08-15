@@ -328,7 +328,16 @@ export interface WriteOpts {
   // PouchDB options for `put`, `post` and `bulkDocs` are not documented
 }
 
+/**
+ * @private
+ * @class RxPouchDbClass
+ * @implements {RxPouchDb}
+ */
 class RxPouchDbClass implements RxPouchDb {
+  /**
+   * @public
+   * @see {RxPouchDbFactory}
+   */
   static newInstance = <RxPouchDbFactory> function (spec: RxPouchDbFactorySpec):
   RxPouchDb {
     assert(spec && spec.db, 'invalid argument') // TODO complete invariant assertions
@@ -343,9 +352,17 @@ class RxPouchDbClass implements RxPouchDb {
     return new RxPouchDbClass(db, dbIo)
   }
 
+  /**
+   * @public
+   * @see {RxPouchDb#write}
+   */
   write: <D extends VersionedDoc[]|VersionedDoc>
   (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => Observable<DocRef[]|DocRef>
 
+  /**
+   * @public
+   * @see {RxPouchDb#read}
+   */
   read: <R extends DocRef[]|DocIdRange|DocRevs|DocRef,
   D extends VersionedDoc|(VersionedDoc&DocRevStatus)>
   (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>) => Observable<D[]|D>
@@ -353,9 +370,13 @@ class RxPouchDbClass implements RxPouchDb {
   constructor (private db: Observable<any>, private dbIo: DbIo) {}
 }
 
-RxPouchDbClass.prototype.write = rxDbIoFrom('write')
-RxPouchDbClass.prototype.read = rxDbIoFrom('read')
+RxPouchDbClass.prototype.write = createRxDbIoMethod('write')
+RxPouchDbClass.prototype.read = createRxDbIoMethod('read')
 
+/**
+ * @public
+ * @see {RxPouchDbFactory#defaults}
+ */
 RxPouchDbClass.newInstance.defaults = {
   read: {
     revs: false,
@@ -368,9 +389,16 @@ RxPouchDbClass.newInstance.defaults = {
   write: {}
 }
 
-function rxDbIoFrom (ioKey: 'write'|'read') {
+/**
+ * @private
+ * @factory createRxDbIoMethod
+ * @param {'write'|'read'} ioKey
+ * @return {<D extends DocRef[]|DocRef>
+  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) => Observable<DocRef[]|DocRef>}
+ */
+function createRxDbIoMethod (ioKey: 'write'|'read') {
   return function <D extends DocRef[]|DocRef>
-  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
+  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
     const _src = toObservable(src)
     .do(logRx('io:src'))
 
@@ -381,6 +409,13 @@ function rxDbIoFrom (ioKey: 'write'|'read') {
   }
 }
 
+/**
+ * @private
+ * @function toObservable
+ * @generic {T}
+ * @param {Observable<T>|PromiseLike<T>|ArrayLike<T>}
+ * @return {Observable<T>}
+ */
 function toObservable <T> (val: Observable<T>|PromiseLike<T>|ArrayLike<T>):
 Observable<T> {
 	try {
@@ -390,5 +425,9 @@ Observable<T> {
   }
 }
 
+/**
+ * @public
+ * @see {RxPouchDbFactory}
+ */
 const getRxPouchDb: RxPouchDbFactory = RxPouchDbClass.newInstance
 export default getRxPouchDb
