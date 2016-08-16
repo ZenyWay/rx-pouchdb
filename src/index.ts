@@ -17,9 +17,9 @@ import { Observable } from '@reactivex/rxjs'
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
-import newDbIo, { DbIoFactory, DbIo } from './db-io'
+import newDbIo, { DbIoFactory, DbIoFactorySpec, DbIo } from './db-io'
 
-import { logRx } from './utils'
+import { logRx, isObject, isFunction, isString, isNumber } from './utils'
 
 /**
  * @public
@@ -43,33 +43,40 @@ export interface RxPouchDbFactory {
 export interface RxPouchDbFactorySpec {
   /**
    * @public
-   * @prop {PouchDB} db the database to wrap
+   * @prop {PouchDB|PromiseLike<PouchDB>} db the database to wrap,
+   * or a {PromiseLike} instance that resolves to the database to wrap
    */
-  db: any // no valid PouchDB typings for TS2
+  db: Object | PromiseLike<Object> // no valid PouchDB typings for TS2
   /**
    * @public
-   * @prop {Object} opts? default options
+   * @prop {RxPouchDbFactoryOpts} opts? default options
    * defaults to {RxPouchDbFactory#defaults}
    */
-  opts?: {
-    /**
-     * @public
-     * @prop {ReadOpts} read? default options for the {RxPouchDb#read} operator.
-     * defaults to {RxPouchDbFactory#defaults#read}
-     */
-    read?: ReadOpts,
-    /**
-     * @public
-     * @prop {WriteOpts} read? default options for the {RxPouchDb#write} operator.
-     * defaults to {RxPouchDbFactory#defaults#write}
-     */
-    write?: WriteOpts
-    /**
-     * @public
-     * @prop {DbIo} dbIo?
-     */
-    dbIo?: DbIo
-  }
+  opts?: RxPouchDbFactoryOpts
+}
+
+/**
+ * @public
+ * @interface RxPouchDbFactoryOpts
+ */
+export interface RxPouchDbFactoryOpts {
+  /**
+   * @public
+   * @prop {ReadOpts} read? default options for the {RxPouchDb#read} operator.
+   * defaults to {RxPouchDbFactory#defaults#read}
+   */
+  read?: ReadOpts,
+  /**
+   * @public
+   * @prop {WriteOpts} read? default options for the {RxPouchDb#write} operator.
+   * defaults to {RxPouchDbFactory#defaults#write}
+   */
+  write?: WriteOpts
+  /**
+   * @public
+   * @prop {DbIo} dbIo?
+   */
+  dbIo?: DbIo
 }
 
 /**
@@ -346,15 +353,15 @@ class RxPouchDbClass implements RxPouchDb {
   static newInstance = <RxPouchDbFactory> function (spec: RxPouchDbFactorySpec):
   RxPouchDb {
     assert(spec && spec.db, 'invalid argument') // TODO complete invariant assertions
-    const db = Observable.fromPromise(spec.db)
-    const dbIoSpec = {
-      read: assign({}, RxPouchDbClass.newInstance.defaults.read,
-        spec.opts && spec.opts.read),
-      write: assign({}, RxPouchDbClass.newInstance.defaults.write,
-        spec.opts && spec.opts.write)
-    }
-    const dbIo = spec.opts && spec.opts.dbIo || newDbIo(dbIoSpec)
-    return new RxPouchDbClass(db, dbIo)
+
+    const db = Promise.resolve(spec.db)
+    .then((db: any) =>
+      isPouchDb(db) ? db : Promise.reject(new Error('invalid PouchDB instance')))
+
+    const dbIo =
+    spec.opts && spec.opts.dbIo || newDbIo(dbIoFactorySpecFrom(spec.opts))
+
+    return new RxPouchDbClass(Observable.fromPromise(db), dbIo)
   }
 
   /**
@@ -396,6 +403,21 @@ RxPouchDbClass.newInstance.defaults = {
 
 /**
  * @private
+ * @function dbIoFactorySpecFrom
+ * @param {RxPouchDbFactoryOpts} opts
+ * @return {DbIoFactorySpec}
+ */
+function dbIoFactorySpecFrom (opts: RxPouchDbFactoryOpts): DbIoFactorySpec {
+  return {
+    read: assign({}, RxPouchDbClass.newInstance.defaults.read,
+      opts && opts.read),
+    write: assign({}, RxPouchDbClass.newInstance.defaults.write,
+      opts && opts.write)
+  }
+}
+
+/**
+ * @private
  * @factory createRxDbIoMethod
  * @param {'write'|'read'} ioKey
  * @return {<D extends DocRef[]|DocRef>
@@ -432,6 +454,30 @@ Observable<T> {
   } catch (err) {
   	return Observable.throw(err)
   }
+}
+
+/**
+ * @private
+ * @function isPouchDb
+ * duck-type checking
+ * @prop {any} val
+ * @return {boolean} true if val looks like a PouchDb
+ */
+function isPouchDb (val: any): boolean {
+  return isObject(val) && isFunction(val.info) && isPouchDbInfo(val.info())
+  && isFunction(val.id) && isString(val.id())
+}
+
+/**
+ * @private
+ * @function isPouchDbInfo
+ * duck-type checking
+ * @prop {any} val
+ * @return {boolean} true if val looks like a PouchDbInfo object
+ */
+function isPouchDbInfo (val: any): boolean {
+  return isObject(val) && isString(val.adapter) && isString(val.db_name)
+  && isNumber(val.doc_count) && isNumber(val.update_seq)
 }
 
 /**

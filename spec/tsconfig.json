@@ -9,7 +9,8 @@
       "dom"
     ],
     "types": [
-      "jasmine"
+      "jasmine",
+      "node"
     ],
     "sourceMap": true,
     "noEmitHelpers": true,
