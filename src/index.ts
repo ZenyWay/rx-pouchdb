@@ -353,7 +353,7 @@ class RxPouchDbClass implements RxPouchDb {
       write: assign({}, RxPouchDbClass.newInstance.defaults.write,
         spec.opts && spec.opts.write)
     }
-    const dbIo = newDbIo(dbIoSpec)
+    const dbIo = spec.opts && spec.opts.dbIo || newDbIo(dbIoSpec)
     return new RxPouchDbClass(db, dbIo)
   }
 
