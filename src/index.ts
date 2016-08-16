@@ -17,7 +17,7 @@ import { Observable } from '@reactivex/rxjs'
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
-import newDbIo, { DbIo } from './db-io'
+import newDbIo, { DbIoFactory, DbIo } from './db-io'
 
 import { logRx } from './utils'
 
@@ -64,6 +64,11 @@ export interface RxPouchDbFactorySpec {
      * defaults to {RxPouchDbFactory#defaults#write}
      */
     write?: WriteOpts
+    /**
+     * @public
+     * @prop {DbIo} dbIo?
+     */
+    dbIo?: DbIo
   }
 }
 
