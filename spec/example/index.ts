@@ -13,7 +13,9 @@
  */
 ;
 import getRxPouchDb from '../../src'
+import debug = require('debug')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
+debug.enable('example:*,rx-pouchdb:*') // rx-pouchdb uses `debug`
 
 const db = new PouchDB('sids')
 
@@ -43,14 +45,10 @@ const refs = sids.write(docs)
 
 // read docs from db
 sids.read(refs)
-.subscribe(log('read:next'), destroy(db), destroy(db))
+.subscribe(debug('example:read:next'), destroy(db), destroy(db))
 
 function destroy (db: any): () => void {
   return () => db.destroy()
-  .then(log('destroy:done'))
-  .catch(log('destroy:err'))
-}
-
-function log (label: string): (...args: any[]) => void {
-  return console.log.bind(console, label)
+  .then(debug('example:destroy:done'))
+  .catch(debug('example:destroy:err'))
 }
