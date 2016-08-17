@@ -450,12 +450,12 @@ function createRxDbIoMethod (ioKey: 'write'|'read') {
   return function <D extends DocRef[]|DocRef>
   (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
     const _src = toObservable(src)
-    .do(logRx('io:src'))
+    .do(logRx(`rx-pouchdb:${ioKey}:src`))
 
     return (<Observable<any>> this.db)
-    .do(logRx('rx-pouchdb:db'))
+    .do(logRx(`rx-pouchdb:${ioKey}:db`))
     .switchMap((db: any) => _src.concatMap(<DbIoMethod> this.dbIo[ioKey](db)))
-    .do(logRx(`rx-pouchdb:rxDbIo.${ioKey}`))
+    .do(logRx(`rx-pouchdb:${ioKey}`))
   }
 }
 
