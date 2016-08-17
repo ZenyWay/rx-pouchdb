@@ -18,7 +18,7 @@ import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
 import newDbIo,
-{ DbIoFactory, DbIoFactorySpec, DbIo, isDbIoLike, isValidPouchDb } from './db-io'
+{ DbIoFactory, DbIoFactorySpec, DbIo, isDbIoLike, isPouchDbLike } from './db-io'
 
 import { logRx, isObject } from './utils'
 
@@ -356,9 +356,8 @@ class RxPouchDbClass implements RxPouchDb {
     assert(isValidFactorySpec(spec), 'invalid argument')
 
     const db = Promise.resolve(spec.db)
-    .then(isValidPouchDb)
-    .then((ok: boolean) => ok ?
-      spec.db : Promise.reject(new Error('invalid PouchDB instance')))
+    .then((db: any) => isPouchDbLike(db) ?
+      db : Promise.reject(new Error('invalid PouchDB instance')))
 
     const dbIo =
     spec.opts && spec.opts.dbIo || newDbIo(dbIoFactorySpecFrom(spec.opts))
@@ -411,7 +410,7 @@ RxPouchDbClass.newInstance.defaults = {
  * @return {spec is RxPouchDbFactorySpec}
  */
 function isValidFactorySpec (spec: any): spec is RxPouchDbFactorySpec {
-  return isObject(spec) && isObject(spec.db) && isValidFactoryOpts(spec.opts)
+  return isObject(spec) && spec.db && isValidFactoryOpts(spec.opts)
 }
 
 /**

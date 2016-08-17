@@ -19,22 +19,14 @@ import { __assign as assign } from 'tslib'
 
 import newRxPouchDb, { RxPouchDb } from '../src'
 
-let pouchdbInfo: any
 let pouchdbMock: any
 let dbIoMock: any
 let types: any[]
 let rxPouchDbObject: any
 
 beforeEach(() => {
-  pouchdbInfo = {
-    adapter: 'foo',
-    db_name: 'bar',
-    doc_count: 42,
-    update_seq: 42
-  }
-  pouchdbMock = jasmine.createSpyObj('pouchdbMock', [ 'info', 'id' ])
-  pouchdbMock.info.and.returnValue(pouchdbInfo)
-  pouchdbMock.id.and.returnValue('42')
+  pouchdbMock = jasmine.createSpyObj('pouchdbMock',
+    [ 'get', 'put', 'allDocs', 'bulkDocs' ])
   dbIoMock = jasmine.createSpyObj('dbIoMock', [ 'write', 'read' ])
   types = [ true, 42, 'foo', [ 42 ], { foo: 'foo' } ]
   rxPouchDbObject = jasmine.objectContaining({
@@ -88,7 +80,7 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
       Observable.from(results.map(result =>
         result
         .map((res) => expect(`${res}`).not.toBeDefined())
-        .isEmpty()
+        .isEmpty() // should never emit
         .catch((err, caught) => {
           expect(err).toEqual(jasmine.any(Error))
           expect(err.name).toBe('Error')
@@ -99,6 +91,17 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
       .subscribe(res => expect(`${res}`).not.toBeDefined(),
         err => expect(`${err}`).not.toBeDefined(),
         schedule(done))
+    })
+  })
+  describe('when called with a spec object containing an `opts` object property ' +
+  'with a `dbIo` property containing a `DbIo` instance', () => {
+    beforeEach((done) => {
+      const rxPouchDb = newRxPouchDb({ db: pouchdbMock, opts: { dbIo: dbIoMock }})
+      rxPouchDb.write([{ _id: 'foo' }])
+      .subscribe(() => {}, schedule(done), schedule(done))
+    })
+    it('should inject that instance in place of the default dependency', () => {
+      expect(dbIoMock.write).toHaveBeenCalled()
     })
   })
 })
