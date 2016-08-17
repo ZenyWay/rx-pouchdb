@@ -4,7 +4,7 @@
 [![coverage status](https://coveralls.io/repos/github/ZenyWay/rx-pouchdb/badge.svg?branch=master)](https://coveralls.io/github/ZenyWay/rx-pouchdb)
 [![Dependency Status](https://gemnasium.com/badges/github.com/ZenyWay/rx-pouchdb.svg)](https://gemnasium.com/github.com/ZenyWay/rx-pouchdb)
 
-thin RXJS abstraction layer for pouchDB:
+thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
 # <a name="api"></a> API v0.0.1 experimental
@@ -23,7 +23,59 @@ or by cloning this repository and running the following commands from a terminal
 npm install
 npm run example
 ```
-the files of this example are available [here](./spec/example).
+the files of this example are available [in this repository](./spec/example).
+
+```ts
+import getRxPouchDb from 'rx-pouchdb/dist'
+const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
+PouchDB.debug.enable()
+
+const db = new PouchDB('sids')
+
+const specs = {
+  db: db,
+  opts: {
+    read: {
+      include_docs: true
+    }
+  }
+}
+const sids = getRxPouchDb(specs)
+
+const docs = [{
+  _id: 'hubbard-rob_monty-on-the-run',
+  title: 'Monty on the Run',
+  author: 'Rob Hubbard',
+  release: '1985'
+}, [{
+  _id: 'hubbard-rob_sanxion',
+  title: 'Sanxion',
+  author: 'Rob Hubbard',
+  release: '1986'
+}, {
+  _id: 'tel-jeroen_ikari-union',
+  title: 'Ikari Union',
+  author: 'Jeroen Tel',
+  release: '1987'
+}]]
+
+// write docs to db
+const refs = sids.write(docs)
+
+// read docs from db
+sids.read(refs)
+.subscribe(log('read:next'), destroy(db), destroy(db))
+
+function destroy (db: any): () => void {
+  return () => db.destroy()
+  .then(log('destroy:done'))
+  .catch(log('destroy:err'))
+}
+
+function log (label: string): (...args: any[]) => void {
+  return console.log.bind(console, label)
+}
+```
 
 # <a name="contributing"></a> CONTRIBUTING
 see the [contribution guidelines](./CONTRIBUTING.md)

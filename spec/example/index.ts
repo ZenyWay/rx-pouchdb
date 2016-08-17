@@ -13,21 +13,12 @@
  */
 ;
 import getRxPouchDb from '../../src'
-import { logRx } from '../../src/utils'
-import * as debug from 'debug'
-import { Observable } from '@reactivex/rxjs'
-import Promise = require('bluebird')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 
-debug.enable('*')
-PouchDB.debug.disable()
-console.clear()
-
-const db = Promise.try(() => new PouchDB('sids'))
+const db = new PouchDB('sids')
 
 const specs = {
   db: db,
-  key: {}, // TODO unlocked key pair
   opts: {
     read: {
       include_docs: true
@@ -55,15 +46,17 @@ const docs = [{
 
 // write docs to db
 const refs = sids.write(docs)
-.do(logRx('write'))
 
 // read docs from db
 sids.read(refs)
-.do(logRx('read'))
-.subscribe(undefined, () => destroy(db), () => destroy(db)) // finally
+.subscribe(log('read:next'), destroy(db), destroy(db))
 
-function destroy (db: any): void {
-  db.then((db: any) => Promise.try(db.destroy.bind(db)))
-  .tap(debug('destroy:done'))
-  .catch(debug('destroy:err'))
+function destroy (db: any): () => void {
+  return () => db.destroy()
+  .then(log('destroy:done'))
+  .catch(log('destroy:err'))
+}
+
+function log (label: string): (...args: any[]) => void {
+  return console.log.bind(console, label)
 }
