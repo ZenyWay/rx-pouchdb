@@ -11,7 +11,7 @@
     "prebuild": "mkdirp build && rimraf build/*",
     "build": "tsc -p src -outDir build",
     "bundle": "browserify dist/index.js > dist/bundle.js",
-    "example": "npm run dist && npm run example:bundle && npm run example:serve",
+    "example": "npm run example:bundle && npm run example:serve",
     "example:serve": "http-server -c-1 -i -e html -o -p 6510 spec/example",
     "preexample:bundle": "rimraf spec/example/*.js",
     "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -o spec/example/index.js",
