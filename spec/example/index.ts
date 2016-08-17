@@ -17,15 +17,9 @@ const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 
 const db = new PouchDB('sids')
 
-const specs = {
-  db: db,
-  opts: {
-    read: {
-      include_docs: true
-    }
-  }
-}
-const sids = getRxPouchDb(specs)
+const sids = getRxPouchDb({ db: db, opts: {
+  read: { include_docs: true }
+}})
 
 const docs = [{
   _id: 'hubbard-rob_monty-on-the-run',

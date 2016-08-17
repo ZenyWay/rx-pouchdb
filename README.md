@@ -7,7 +7,7 @@
 thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
-# <a name="api"></a> API v0.0.1 experimental
+# <a name="api"></a> API v1.0.0 experimental
 `ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
 Coded in `Typescript 2`.
 
@@ -28,19 +28,12 @@ the files of this example are available [in this repository](./spec/example).
 ```ts
 import getRxPouchDb from 'rx-pouchdb/dist'
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
-PouchDB.debug.enable()
 
 const db = new PouchDB('sids')
 
-const specs = {
-  db: db,
-  opts: {
-    read: {
-      include_docs: true
-    }
-  }
-}
-const sids = getRxPouchDb(specs)
+const sids = getRxPouchDb({ db: db, opts: {
+  read: { include_docs: true }
+}})
 
 const docs = [{
   _id: 'hubbard-rob_monty-on-the-run',
