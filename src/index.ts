@@ -17,9 +17,10 @@ import { Observable } from '@reactivex/rxjs'
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
-import newDbIo, { DbIoFactory, DbIoFactorySpec, DbIo } from './db-io'
+import newDbIo,
+{ DbIoFactory, DbIoFactorySpec, DbIo, isDbIoLike, isValidPouchDb } from './db-io'
 
-import { logRx, isObject, isFunction, isString, isNumber } from './utils'
+import { logRx, isObject } from './utils'
 
 /**
  * @public
@@ -352,11 +353,12 @@ class RxPouchDbClass implements RxPouchDb {
    */
   static newInstance = <RxPouchDbFactory> function (spec: RxPouchDbFactorySpec):
   RxPouchDb {
-    assert(spec && spec.db, 'invalid argument') // TODO complete invariant assertions
+    assert(isValidFactorySpec(spec), 'invalid argument')
 
     const db = Promise.resolve(spec.db)
-    .then((db: any) =>
-      isPouchDb(db) ? db : Promise.reject(new Error('invalid PouchDB instance')))
+    .then(isValidPouchDb)
+    .then((ok: boolean) => ok ?
+      spec.db : Promise.reject(new Error('invalid PouchDB instance')))
 
     const dbIo =
     spec.opts && spec.opts.dbIo || newDbIo(dbIoFactorySpecFrom(spec.opts))
@@ -399,6 +401,28 @@ RxPouchDbClass.newInstance.defaults = {
     include_docs: false
   },
   write: {}
+}
+
+/**
+ * @public
+ * @function isValidFactorySpec
+ * duck-type validation
+ * @param {any} spec
+ * @return {spec is RxPouchDbFactorySpec}
+ */
+function isValidFactorySpec (spec: any): spec is RxPouchDbFactorySpec {
+  return isObject(spec) && isObject(spec.db) && isValidFactoryOpts(spec.opts)
+}
+
+/**
+ * @public
+ * @function isValidFactoryOpts
+ * duck-type validation
+ * @param {any} opts
+ * @return {opts is RxPouchDbFactoryOpts}
+ */
+function isValidFactoryOpts (opts?: any): opts is RxPouchDbFactoryOpts {
+  return !isObject(opts) || !opts.dbIo || isDbIoLike(opts.dbIo)
 }
 
 /**
@@ -454,30 +478,6 @@ Observable<T> {
   } catch (err) {
   	return Observable.throw(err)
   }
-}
-
-/**
- * @private
- * @function isPouchDb
- * duck-type checking
- * @prop {any} val
- * @return {boolean} true if val looks like a PouchDb
- */
-function isPouchDb (val: any): boolean {
-  return isObject(val) && isFunction(val.info) && isPouchDbInfo(val.info())
-  && isFunction(val.id) && isString(val.id())
-}
-
-/**
- * @private
- * @function isPouchDbInfo
- * duck-type checking
- * @prop {any} val
- * @return {boolean} true if val looks like a PouchDbInfo object
- */
-function isPouchDbInfo (val: any): boolean {
-  return isObject(val) && isString(val.adapter) && isString(val.db_name)
-  && isNumber(val.doc_count) && isNumber(val.update_seq)
 }
 
 /**
