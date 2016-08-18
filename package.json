@@ -4,6 +4,7 @@
   "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
   "main": "dist",
   "browser": "dist/bundle.js",
+  "aliasify": "spec/aliasify.conf.js",
   "scripts": {
     "prepublish": "npm run dist",
     "predist": "mkdirp dist && rimraf dist/*",
@@ -14,7 +15,7 @@
     "example": "npm run example:bundle && npm run example:serve",
     "example:serve": "http-server -c-1 -i -e html -o -p 6510 spec/example",
     "preexample:bundle": "rimraf spec/example/*.js",
-    "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -o spec/example/index.js",
+    "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -t aliasify -t uglifyify --exclude pouchdb-browser --exclude '@reactivex%2Frxjs' --exclude bluebird --exclude debug -o spec/example/index.js",
     "pretest": "mkdirp spec/reports && rimraf spec/reports/*",
     "test": "karma start spec/karma.conf.js --single-run",
     "test:debug": "karma start spec/karma.conf.js --no-single-run",
@@ -25,7 +26,8 @@
     "test:ci:coveralls": "cat spec/reports/coverage/lcov.info | sed -e 's/SF:\\.\\.\\/\\.\\.\\//SF:/' | coveralls",
     "test:ci": "karma start spec/karma-coverage.conf.js --single-run && remap-istanbul -i spec/reports/coverage/chrom*/coverage.json -o spec/reports/coverage/lcov.info -t lcovonly",
     "test:web:serve": "http-server -c-1 -o -p 6510 spec/web",
-    "test:web": "browserify spec/*.spec.ts -p [ tsify --project spec ] -t uglifyify --exclude bluebird --exclude debug -o spec/web/index.spec.js && npm run test:web:serve"
+    "pretest:web": "rimraf spec/web/*.js",
+    "test:web": "browserify spec/*.spec.ts -p [ tsify --project spec ] -t aliasify -t uglifyify --exclude '@reactivex%2Frxjs' --exclude bluebird --exclude debug -o spec/web/index.spec.js && npm run test:web:serve"
   },
   "repository": {
     "type": "git",
@@ -59,6 +61,7 @@
   "devDependencies": {
     "@types/jasmine": "^2.2.31",
     "@types/node": "^6.0.33",
+    "aliasify": "^2.0.0",
     "browserify": "^13.1.0",
     "browserify-istanbul": "^2.0.0",
     "coveralls": "^2.11.12",
@@ -81,6 +84,7 @@
     "pouchdb-browser": "^5.4.5",
     "remap-istanbul": "^0.6.4",
     "rimraf": "^2.5.4",
+    "standard": "^7.1.2",
     "tsify": "^1.0.3",
     "typescript": "^2.0.0",
     "uglifyify": "^3.0.2",

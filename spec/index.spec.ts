@@ -13,7 +13,7 @@
  */
 ;
 import Promise = require('bluebird')
-import { Observable, Observer } from '@reactivex/rxjs'
+import { Observable } from '@reactivex/rxjs'
 import { schedule, unwrap } from './support/jasmine-bluebird'
 import { __assign as assign } from 'tslib'
 
