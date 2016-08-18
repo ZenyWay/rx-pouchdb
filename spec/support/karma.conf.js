@@ -13,8 +13,8 @@
  */
 ;
 var browsers = [
-  process.env.TRAVIS ? 'Chrome--no-sandbox' : 'Chrome',
-  'Firefox'
+  'Firefox',
+  process.env.TRAVIS ? 'Chrome--no-sandbox' : 'Chrome'
 ]
 
 if (process.env.TRAVIS_OS_NAME === 'osx') {
@@ -60,7 +60,7 @@ module.exports = function (config) {
       'spec', 'kjhtml', 'junit'
     ],
     junitReporter: {
-      outputDir: '../reports',
+      outputDir: './reports',
       outputFile: undefined, // filename based on browser name
       suite: 'unit'
     },
