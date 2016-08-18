@@ -25,35 +25,16 @@ import { logRx, isObject } from './utils'
 /**
  * @public
  * @factory
- * @param {RxPouchDbFactorySpec} Spec
+ * @param {Object | PromiseLike<Object>} db
+ * @param {RxPouchDbFactoryOpts} Opts?
  * @return {RxPouchDb}
  */
 export interface RxPouchDbFactory {
-  (spec: RxPouchDbFactorySpec): RxPouchDb
+  (db: Object | PromiseLike<Object>, opts?: RxPouchDbFactoryOpts): RxPouchDb
   defaults: {
     read: ReadOpts,
     write: WriteOpts
   }
-}
-
-/**
- * @public
- * @interface {RxPouchDbFactorySpec}
- * specification object that defines a {RxPouchDb} instance
- */
-export interface RxPouchDbFactorySpec {
-  /**
-   * @public
-   * @prop {PouchDB|PromiseLike<PouchDB>} db the database to wrap,
-   * or a {PromiseLike} instance that resolves to the database to wrap
-   */
-  db: Object | PromiseLike<Object> // no valid PouchDB typings for TS2
-  /**
-   * @public
-   * @prop {RxPouchDbFactoryOpts} opts? default options
-   * defaults to {RxPouchDbFactory#defaults}
-   */
-  opts?: RxPouchDbFactoryOpts
 }
 
 /**
@@ -351,18 +332,17 @@ class RxPouchDbClass implements RxPouchDb {
    * @public
    * @see {RxPouchDbFactory}
    */
-  static newInstance = <RxPouchDbFactory> function (spec: RxPouchDbFactorySpec):
-  RxPouchDb {
-    assert(isValidFactorySpec(spec), 'invalid argument')
+  static newInstance = <RxPouchDbFactory>
+  function (db: any, opts?: RxPouchDbFactoryOpts): RxPouchDb {
+    assert(isObject(db) && isValidFactoryOpts(opts), 'invalid argument')
 
-    const db = Promise.resolve(spec.db)
+    const _db = Promise.resolve(db)
     .then((db: any) => isPouchDbLike(db) ?
       db : Promise.reject(new Error('invalid PouchDB instance')))
 
-    const dbIo =
-    spec.opts && spec.opts.dbIo || newDbIo(dbIoFactorySpecFrom(spec.opts))
+    const dbIo = opts && opts.dbIo || newDbIo(dbIoFactorySpecFrom(opts))
 
-    return new RxPouchDbClass(Observable.fromPromise(db), dbIo)
+    return new RxPouchDbClass(Observable.fromPromise(_db), dbIo)
   }
 
   /**
@@ -404,24 +384,13 @@ RxPouchDbClass.newInstance.defaults = {
 
 /**
  * @public
- * @function isValidFactorySpec
- * duck-type validation
- * @param {any} spec
- * @return {spec is RxPouchDbFactorySpec}
- */
-function isValidFactorySpec (spec: any): spec is RxPouchDbFactorySpec {
-  return isObject(spec) && spec.db && isValidFactoryOpts(spec.opts)
-}
-
-/**
- * @public
  * @function isValidFactoryOpts
  * duck-type validation
  * @param {any} opts
  * @return {opts is RxPouchDbFactoryOpts}
  */
 function isValidFactoryOpts (opts?: any): opts is RxPouchDbFactoryOpts {
-  return !isObject(opts) || !opts.dbIo || isDbIoLike(opts.dbIo)
+  return !opts || isObject(opts) || !opts.dbIo || isDbIoLike(opts.dbIo)
 }
 
 /**

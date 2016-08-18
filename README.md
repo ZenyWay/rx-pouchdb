@@ -26,16 +26,16 @@ npm run example
 the files of this example are available [in this repository](./spec/example).
 
 ```ts
-import getRxPouchDb from 'rx-pouchdb/dist'
+import newRxPouchDb from 'rx-pouchdb/dist'
 import debug = require('debug')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 debug.enable('example:*,rx-pouchdb:*') // rx-pouchdb uses `debug`
 
 const db = new PouchDB('sids')
 
-const sids = getRxPouchDb({ db: db, opts: {
+const sids = newRxPouchDb(db, {
   read: { include_docs: true }
-}})
+})
 
 const docs = [{
   _id: 'hubbard-rob_monty-on-the-run',

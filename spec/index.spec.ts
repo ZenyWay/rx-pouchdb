@@ -28,7 +28,7 @@ beforeEach(() => {
   pouchdbMock = jasmine.createSpyObj('pouchdbMock',
     [ 'get', 'put', 'allDocs', 'bulkDocs' ])
   dbIoMock = jasmine.createSpyObj('dbIoMock', [ 'write', 'read' ])
-  types = [ true, 42, 'foo', [ 42 ], { foo: 'foo' } ]
+  types = [ undefined, null, NaN, true, 42, 'foo', [ 42 ], { foo: 'foo' } ]
   rxPouchDbObject = jasmine.objectContaining({
     write: jasmine.any(Function),
     read: jasmine.any(Function)
@@ -44,40 +44,44 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
       read: jasmine.any(Object)
     })
   })
-  describe('when called with a { db: PouchDb | Promise<PouchDb> } spec object',
+  describe('when called with a non-null `db` Object argument',
   () => {
     let args: any[]
     beforeEach(() => {
       args = [ pouchdbMock, Promise.resolve(pouchdbMock) ]
-      .map(db => ({ db: db }))
     })
-    it('should return a `RxPouchDb` object with `write` and `read` methods', () => {
+    it('should return a `RxPouchDb` object with `write` and `read` methods',
+    () => {
       args.forEach(arg =>
         expect(newRxPouchDb(arg)).toEqual(rxPouchDbObject))
     })
   })
-  describe('when called with anything else then a spec object ' +
-  'with a truthy `db` property', () => {
+  describe('when called without a `db` argument, or with a `db` argument ' +
+  'that is not a non-null Object', () => {
     it('should throw an `AssertionError` with `invalid argument`', () => {
-      types.forEach(arg =>
+      types.filter(val => !val || (typeof val !== 'object'))
+      .forEach(arg =>
         expect(() => newRxPouchDb(arg)).toThrowError('invalid argument'))
     })
   })
-  describe('when called with a spec object with a `db` property that is not ' +
-  'a valid PouchDB instance or that resolves to an invalid PouchDB instance',
+  describe('when called with a `db` argument that is not PouchDB-like, ' +
+  'or that resolves to an instance that is not PouchDB-like',
   () => {
-    let results: Observable<any>[]
+    let results: RxPouchDb[]
+    let docs: any[]
     beforeEach(() => {
-      const docs = [{ _id: 'foo' }]
+      docs = [{ _id: 'foo' }]
       results = types
+      .filter(val => val && (typeof val === 'object'))
       .reduce((args, arg) => args.concat([ arg, Promise.resolve(arg) ]), [])
-      .map((val: any) => newRxPouchDb({ db: val, opts: { dbIo: dbIoMock } }))
-      .reduce((results: Observable<any>[], rxPouchDb: RxPouchDb) =>
-        results.concat([ rxPouchDb.write(docs), rxPouchDb.read(docs) ]), [])
+      .map((val: any) => newRxPouchDb(val, { dbIo: dbIoMock }))
     })
     it('should return a `RxPouchDb` object with `write` and `read` methods ' +
     'that emit an `Error` with `invalid PouchDB instance`', (done) => {
-      Observable.from(results.map(result =>
+      Observable.from(results
+      .reduce((results:Observable<any>[], rxPouchDb: RxPouchDb) =>
+        results.concat([ rxPouchDb.write(docs), rxPouchDb.read(docs) ]), [])
+      .map(result =>
         result
         .map((res) => expect(`${res}`).not.toBeDefined())
         .isEmpty() // should never emit
@@ -96,7 +100,7 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
   describe('when called with a spec object containing an `opts` object property ' +
   'with a `dbIo` property containing a `DbIo` instance', () => {
     beforeEach((done) => {
-      const rxPouchDb = newRxPouchDb({ db: pouchdbMock, opts: { dbIo: dbIoMock }})
+      const rxPouchDb = newRxPouchDb(pouchdbMock, { dbIo: dbIoMock })
       rxPouchDb.write([{ _id: 'foo' }])
       .subscribe(() => {}, schedule(done), schedule(done))
     })
