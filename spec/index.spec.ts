@@ -36,7 +36,7 @@ beforeEach(() => {
 })
 
 describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
-'opts: RxPouchDbFactoryOpts): RxPouchDb',
+'opts?: RxPouchDbFactoryOpts): RxPouchDb',
 () => {
   it('should expose a `defaults` object property { read: ReadOpts, write: WriteOpts }',
   () => {
@@ -82,9 +82,7 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
       Observable.from(results
       .reduce((results:Observable<any>[], rxPouchDb: RxPouchDb) =>
         results.concat([ rxPouchDb.write(docs), rxPouchDb.read(docs) ]), [])
-      .map(result =>
-        result
-        .map((res) => expect(`${res}`).not.toBeDefined())
+      .map(result => result
         .isEmpty() // should never emit
         .catch((err, caught) => {
           expect(err).toEqual(jasmine.any(Error))
@@ -93,30 +91,78 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
           return Observable.empty()
         })))
       .mergeAll()
-      .subscribe(res => expect(`${res}`).not.toBeDefined(),
-        err => expect(`${err}`).not.toBeDefined(),
-        schedule(done))
+      .subscribe(schedule(done.fail), schedule(done.fail), schedule(done))
     })
   })
-  describe('when called with an `opts: { dbIo: DbIo }` object argument ', () => {
-    beforeEach((done) => {
-      const rxPouchDb = newRxPouchDb(pouchdbMock, { dbIo: dbIoMock })
-      rxPouchDb.write([{ _id: 'foo' }])
-      .subscribe(() => {}, schedule(done), schedule(done))
-    })
-    it('should inject the `opts.dbIo` instance in place of ' +
-    'the default dependency', () => {
-      expect(dbIoMock.write).toHaveBeenCalled()
+  describe('when called with an `opts` argument', () => {
+    describe('with an `opts.dbIo` instance', () => {
+      describe('that is DbIo-like', () => {
+        beforeEach((done) => {
+          const rxPouchDb = newRxPouchDb(pouchdbMock, { dbIo: dbIoMock })
+          rxPouchDb.write([{ _id: 'foo' }])
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should inject it in place of the default DbIo dependency', () => {
+          expect(dbIoMock.write).toHaveBeenCalled()
+        })
+      })
+      describe('that is not DbIo-like but truthy', () => {
+        it('should throw an `invalid argument` AssertionError', () => {
+          types
+          .filter(val => val) // truthy
+          .forEach(arg => {
+            expect(() => newRxPouchDb(pouchdbMock, { dbIo: arg }))
+            .toThrowError(AssertionError, 'invalid argument')
+          })
+        })
+      })
     })
   })
-  describe('when called with an `opts.dbIo` instance that is truthy and ' +
-  'not DbIo-like', () => {
-    it('should throw an `invalid argument` AssertionError', () => {
-      types
-      .filter(val => val) // truthy
-      .forEach(arg => {
-        expect(() => newRxPouchDb(pouchdbMock, { dbIo: arg }))
-        .toThrowError(AssertionError, 'invalid argument')
+})
+
+describe('interface RxPouchDb: { write: Function, read: Function}', () => {
+  let rxPouchDb: any
+  beforeEach(() => {
+    rxPouchDb = newRxPouchDb(pouchdbMock)
+  })
+  describe('RxPouchDb#write: <D extends VersionedDoc[]|VersionedDoc> ' +
+  '(docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => ' +
+  'Observable<DocRef[]|DocRef>', () => {
+    describe('when given an Observable, a Promise-like or an Array-like object',
+    () => {
+      it('should return an Observable', () => {
+        ;[ Observable.from([ 'foo' ]), Promise.resolve('foo'), [ 'foo' ]]
+        .map(arg => rxPouchDb.write(arg))
+        .forEach(res => expect(res).toEqual(jasmine.any(Observable)))
+      })
+      describe('that emits a document object extending { _id: string }', () => {
+        let doc: any
+        let ref: any
+        let res: any
+        beforeEach((done) => {
+          doc = { _id: 'foo' }
+          ref = { _id: 'foo', _rev: 'bar'}
+          res = {}
+          pouchdbMock.put.and.returnValue(Promise.resolve(ref))
+
+          rxPouchDb.write(Observable.of(doc))
+          .do(set(res, 'val'), set(res, 'err'), () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+
+          function set (obj: Object, key: string) {
+            return (val:any) => obj[key] = val
+          }
+        })
+        it('should store that document in the wrapped db', () => {
+          expect(pouchdbMock.put.calls.allArgs()).toEqual([
+            jasmine.arrayContaining([ doc ])
+          ])
+        })
+        it('should return an Observable that emits the { _id: string, ' +
+        '_rev: string } reference returned from the db', () => {
+          expect(res.val).toEqual(ref)
+          expect(res.err).not.toBeDefined()
+        })
       })
     })
   })
