@@ -1,7 +1,7 @@
 # rx-pouchdb [![Join the chat at https://gitter.im/ZenyWay/rx-pouchdb](https://badges.gitter.im/ZenyWay/rx-pouchdb.svg)](https://gitter.im/ZenyWay/rx-pouchdb?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![NPM](https://nodei.co/npm/rx-pouchdb.png?compact=true)](https://nodei.co/npm/rx-pouchdb/)
 [![build status](https://travis-ci.org/ZenyWay/rx-pouchdb.svg?branch=master)](https://travis-ci.org/ZenyWay/rx-pouchdb)
-[![coverage status](https://coveralls.io/repos/github/ZenyWay/rx-pouchdb/badge.svg?branch=master)](https://coveralls.io/github/ZenyWay/rx-pouchdb)
+[![Coverage Status](https://coveralls.io/repos/github/ZenyWay/rx-pouchdb/badge.svg?branch=master)](https://coveralls.io/github/ZenyWay/rx-pouchdb?branch=master)
 [![Dependency Status](https://gemnasium.com/badges/github.com/ZenyWay/rx-pouchdb.svg)](https://gemnasium.com/github.com/ZenyWay/rx-pouchdb)
 
 thin RXJS abstraction layer for pouchDB with
