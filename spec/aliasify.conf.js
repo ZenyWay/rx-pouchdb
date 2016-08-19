@@ -1,9 +1,9 @@
 module.exports = {
   aliases: {
-    "@reactivex/rxjs": "@reactivex%2Frxjs" // wzrd.in URL format
+    '@reactivex/rxjs': '@reactivex%2Frxjs' // wzrd.in URL format
   },
   appliesTo: {
-    "includeExtensions": ['.ts']
+    'includeExtensions': ['.ts']
   },
   verbose: true
 }
