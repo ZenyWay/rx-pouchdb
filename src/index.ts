@@ -390,7 +390,7 @@ RxPouchDbClass.newInstance.defaults = {
  * @return {opts is RxPouchDbFactoryOpts}
  */
 function isValidFactoryOpts (opts?: any): opts is RxPouchDbFactoryOpts {
-  return !opts || isObject(opts) || !opts.dbIo || isDbIoLike(opts.dbIo)
+  return !opts || isObject(opts) && (!opts.dbIo || isDbIoLike(opts.dbIo))
 }
 
 /**

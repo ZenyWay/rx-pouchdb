@@ -122,7 +122,7 @@ class DbIoClass implements DbIo {
    * @public
    * @see {DbIoDuckTypable}
    */
-  static isDbIo: DbIoDuckTypable =
+  static isDbIoLike: DbIoDuckTypable =
   function (val?:any): val is DbIo {
     return isObject(val) && isFunction(val.write) && isFunction(val.read)
   }
@@ -203,7 +203,7 @@ function isDbIoFactoryMethod (val: any): val is DbIoFactoryMethod {
  * @public
  * @see {DbIoDuckTypable}
  */
-export const isDbIoLike = DbIoClass.isDbIo
+export const isDbIoLike = DbIoClass.isDbIoLike
 
 /**
  * @public

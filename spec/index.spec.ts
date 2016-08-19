@@ -16,7 +16,7 @@ import Promise = require('bluebird')
 import { Observable } from '@reactivex/rxjs'
 import { schedule, unwrap } from './support/jasmine-bluebird'
 import { __assign as assign } from 'tslib'
-
+import { AssertionError } from 'assert'
 import newRxPouchDb, { RxPouchDb } from '../src'
 
 let pouchdbMock: any
@@ -35,7 +35,8 @@ beforeEach(() => {
   })
 })
 
-describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
+describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
+'opts: RxPouchDbFactoryOpts): RxPouchDb',
 () => {
   it('should expose a `defaults` object property { read: ReadOpts, write: WriteOpts }',
   () => {
@@ -77,7 +78,7 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
       .map((val: any) => newRxPouchDb(val, { dbIo: dbIoMock }))
     })
     it('should return a `RxPouchDb` object with `write` and `read` methods ' +
-    'that emit an `Error` with `invalid PouchDB instance`', (done) => {
+    'that emit an `invalid PouchDB instance` Error', (done) => {
       Observable.from(results
       .reduce((results:Observable<any>[], rxPouchDb: RxPouchDb) =>
         results.concat([ rxPouchDb.write(docs), rxPouchDb.read(docs) ]), [])
@@ -97,15 +98,26 @@ describe('factory newRxPouchDb (spec: RxPouchDbFactorySpec): RxPouchDb',
         schedule(done))
     })
   })
-  describe('when called with a spec object containing an `opts` object property ' +
-  'with a `dbIo` property containing a `DbIo` instance', () => {
+  describe('when called with an `opts: { dbIo: DbIo }` object argument ', () => {
     beforeEach((done) => {
       const rxPouchDb = newRxPouchDb(pouchdbMock, { dbIo: dbIoMock })
       rxPouchDb.write([{ _id: 'foo' }])
       .subscribe(() => {}, schedule(done), schedule(done))
     })
-    it('should inject that instance in place of the default dependency', () => {
+    it('should inject the `opts.dbIo` instance in place of ' +
+    'the default dependency', () => {
       expect(dbIoMock.write).toHaveBeenCalled()
+    })
+  })
+  describe('when called with an `opts.dbIo` instance that is truthy and ' +
+  'not DbIo-like', () => {
+    it('should throw an `invalid argument` AssertionError', () => {
+      types
+      .filter(val => val) // truthy
+      .forEach(arg => {
+        expect(() => newRxPouchDb(pouchdbMock, { dbIo: arg }))
+        .toThrowError(AssertionError, 'invalid argument')
+      })
     })
   })
 })
