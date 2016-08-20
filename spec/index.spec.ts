@@ -135,7 +135,8 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         .map(arg => rxPouchDb.write(arg))
         .forEach(res => expect(res).toEqual(jasmine.any(Observable)))
       })
-      describe('that emits a document object extending { _id: string }', () => {
+      describe('that emits a document object extending ' +
+      '{ _id: string, _rev?: string }', () => {
         let doc: any
         let ref: any
         let res: any
@@ -162,6 +163,30 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         '_rev: string } reference returned from the db', () => {
           expect(res.val).toEqual(ref)
           expect(res.err).not.toBeDefined()
+        })
+      })
+      describe('that emits anything else then a valid document ' +
+      'extending { _id: string, _rev?: string }', () => {
+        let results: any
+        beforeEach(() => {
+          const args: any[] = types.filter(val => typeof val !== 'string')
+          .reduce((arr: any[], val: any) => arr
+            .concat([ { _id: val } ])
+            .concat(!val ? [] : [ { _id: 'foo', _rev: val } ]),
+          [])
+          .concat(types.filter(val => !Array.isArray(val)))
+
+          results = rxPouchDb.write(Observable.from(args))
+        })
+        it('should emit an `invalid document` AssertionError', (done) => {
+          results.isEmpty() // should never emit
+          .catch((err: any, caught: Observable<any>) => {
+            expect(err).toEqual(jasmine.any(AssertionError))
+            expect(err.message).toBe('invalid document')
+            return Observable.empty()
+          })
+          .mergeAll()
+          .subscribe(schedule(done.fail), schedule(done.fail), schedule(done))
         })
       })
     })

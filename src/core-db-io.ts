@@ -12,9 +12,10 @@
  * Limitations under the License.
  */
 ;
+import assert = require('assert')
 import { __assign as assign } from 'tslib'
 import { WriteOpts, ReadOpts, DocRef, DocRevs, DocIdRange } from './'
-import { isObject, isFunction } from './utils'
+import { isObject, isFunction, isString } from './utils'
 
 /**
  * @public
@@ -107,13 +108,19 @@ abstract class CoreDbIoClass implements CoreDbIo {
 
 class CoreDbWriteClass extends CoreDbIoClass {
   unit (db: any): (doc: DocRef) => Promise<DocRef> {
-    return (doc: DocRef) => db.put(doc, this.spec)
+    return (doc: DocRef) => {
+      assert(isValidDocRef(doc), 'invalid document')
+      return db.put(doc, this.spec)
       .then(toDocRef)
+    }
   }
 
   bulk (db: any): (docs: DocRef[]) => Promise<DocRef[]> {
-    return (docs: DocRef[]) => db.bulkDocs(docs, this.spec)
+    return (docs: DocRef[]) => {
+      assert(isValidDocRefArray(docs), 'invalid document')
+      return db.bulkDocs(docs, this.spec)
       .then(toDocRefs)
+    }
   }
 
   constructor (private spec: WriteOpts) {
@@ -135,6 +142,15 @@ class CoreDbReadClass extends CoreDbIoClass {
   constructor (private spec: ReadOpts) {
     super()
   }
+}
+
+function isValidDocRef (val: any): val is DocRef {
+  return val && isString(val._id) && (!val._ref || isString(val._ref))
+}
+
+function isValidDocRefArray (val: any): val is DocRef[] {
+  return Array.isArray(val) && val
+  .every((val: any) => isValidDocRef(val))
 }
 
 function toDocRefs (res: any[]): DocRef[] {
