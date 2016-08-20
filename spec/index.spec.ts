@@ -220,4 +220,17 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
       })
     })
   })
+  describe('RxPouchDb#read: <R extends DocRef[]|DocIdRange|DocRevs|DocRef, ' +
+  'D extends VersionedDoc|(VersionedDoc&DocRevStatus)> ' +
+  '(refs: Observable<R>|PromiseLike<R>|ArrayLike<R>) => ' +
+  'Observable<D[]|D>', () => {
+    describe('when given an Observable, a Promise-like or an Array-like object',
+    () => {
+      it('should return an Observable', () => {
+        ;[ Observable.from([ 'foo' ]), Promise.resolve('foo'), [ 'foo' ]]
+        .map(arg => rxPouchDb.read(arg))
+        .forEach(res => expect(res).toEqual(jasmine.any(Observable)))
+      })
+    })
+  })
 })
