@@ -122,18 +122,16 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
 
 describe('interface RxPouchDb: { write: Function, read: Function}', () => {
   let rxPouchDb: any
+  let setProperty: (obj: Object, key: string) => (val: any) => any
   beforeEach(() => {
     rxPouchDb = newRxPouchDb(pouchdbMock)
+    setProperty = (obj: Object, key: string) => (val:any) => obj[key] = val
   })
   describe('RxPouchDb#write: <D extends VersionedDoc[]|VersionedDoc> ' +
   '(docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => ' +
   'Observable<DocRef[]|DocRef>', () => {
     describe('when given an Observable, a Promise-like or an Array-like object',
     () => {
-      let setProperty: (obj: Object, key: string) => (val: any) => any
-      beforeEach(() => {
-        setProperty = (obj: Object, key: string) => (val:any) => obj[key] = val
-      })
       it('should return an Observable', () => {
         ;[ Observable.from([ 'foo' ]), Promise.resolve('foo'), [ 'foo' ]]
         .map(arg => rxPouchDb.write(arg))
@@ -230,6 +228,30 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         ;[ Observable.from([ 'foo' ]), Promise.resolve('foo'), [ 'foo' ]]
         .map(arg => rxPouchDb.read(arg))
         .forEach(res => expect(res).toEqual(jasmine.any(Observable)))
+      })
+      describe('that emits a valid document reference object extending ' +
+      '{ _id: string, _rev?: string }', () => {
+        let ref: any
+        let res: any
+        beforeEach((done) => {
+          ref = { _id: 'foo', _rev: 'bar'}
+          res = {}
+          pouchdbMock.get.and.returnValue(Promise.resolve(ref))
+
+          rxPouchDb.read(Observable.of(ref))
+          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should fetch the referenced document from the wrapped db', () => {
+          expect(pouchdbMock.get.calls.allArgs()).toEqual([
+            [ ref._id, jasmine.objectContaining({ rev: ref._rev })]
+          ])
+        })
+        it('should return an Observable that emits the referenced document ' +
+        'fetched from the db', () => {
+          expect(res.val).toEqual(ref)
+          expect(res.err).not.toBeDefined()
+        })
       })
     })
   })
