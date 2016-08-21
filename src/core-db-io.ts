@@ -130,12 +130,12 @@ class CoreDbWriteClass extends CoreDbIoClass {
 
 class CoreDbReadClass extends CoreDbIoClass {
   unit (db:any): (ref: DocRef|DocRevs) => Promise<DocRef[]|DocRef> {
-    return ref => db.get(ref._id, assign(unitOptsFrom(ref), this.spec))
+    return ref => db.get(ref._id, assign({}, this.spec, unitOptsFrom(ref)))
       .then(docsFromRevs)
   }
 
   bulk (db: any): (refs: DocRef[]|DocIdRange) => Promise<DocRef[]> {
-    return refs => db.allDocs(assign({}, bulkOptsFrom(refs), this.spec))
+    return refs => db.allDocs(assign({}, this.spec, bulkOptsFrom(refs)))
       .then((res: AllDocsResult) => res.rows.map(row => row.doc))
   }
 

@@ -229,7 +229,7 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         .map(arg => rxPouchDb.read(arg))
         .forEach(res => expect(res).toEqual(jasmine.any(Observable)))
       })
-      describe('that emits a valid document reference object extending ' +
+      describe('that emits a valid document reference object ' +
       '{ _id: string, _rev?: string }', () => {
         let ref: any
         let res: any
@@ -250,6 +250,33 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         it('should return an Observable that emits the referenced document ' +
         'fetched from the db', () => {
           expect(res.val).toEqual(ref)
+          expect(res.err).not.toBeDefined()
+        })
+      })
+      describe('that emits a valid reference object of document revisions ' +
+      '{ _id: string, _revs: string[] }', () => {
+        let refs: any
+        let revs: any[]
+        let res: any
+        beforeEach((done) => {
+          refs = { _id: 'foo', _revs: [ 'bar' ]}
+          revs = [ { ok: { _id: 'foo', _rev: 'bar' } } ]
+          res = {}
+          pouchdbMock.get.and.returnValue(Promise.resolve(revs))
+
+          rxPouchDb.read(Observable.of(refs))
+          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should fetch the referenced document versions from the wrapped db',
+        () => {
+          expect(pouchdbMock.get.calls.allArgs()).toEqual([
+            [ refs._id, jasmine.objectContaining({ revs: refs._revs })]
+          ])
+        })
+        it('should return an Observable that emits the referenced document ' +
+        'revisions fetched from the db', () => {
+          expect(res.val).toEqual([ revs[0].ok ])
           expect(res.err).not.toBeDefined()
         })
       })
