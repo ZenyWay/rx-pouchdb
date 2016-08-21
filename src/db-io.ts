@@ -15,7 +15,8 @@
 import { Observable } from '@reactivex/rxjs'
 import Promise = require('bluebird')
 import { WriteOpts, ReadOpts, DocRef, DocIdRange, DocRevs, DocId } from './'
-import newCoreDbIo, { CoreDbIo, CoreDbIoMethod, isPouchDbLike } from './core-db-io'
+import newCoreDbIo,
+  { CoreDbIo, isCoreDbIoLike, CoreDbIoMethod, isPouchDbLike } from './core-db-io'
 import { logRx, isObject, isFunction, isString } from './utils'
 export { isPouchDbLike }
 
@@ -46,7 +47,7 @@ export interface DbIoFactorySpec {
   read: ReadOpts,
   /**
    * @public
-   * @prop {{ write: CoreDbIo, read: CoreDbIo }} coreDbIo
+   * @prop {{ write?: CoreDbIo, read?: CoreDbIo }} coreDbIo
    */
   coreDbIo?: {
     write?: CoreDbIo
@@ -89,8 +90,7 @@ export interface DbIo {
 /**
  * @public
  * @function DbIoDuckTypable
- * duck-type validation: checks for `write` and `read` methods,
- * and that both expect one argument.
+ * duck-type validation: checks for `write` and `read` methods.
  * @prop {any} val?
  * @return {val is DbIo}
  */
@@ -111,10 +111,8 @@ class DbIoClass implements DbIo {
   static newInstance: DbIoFactory =
   function (spec: DbIoFactorySpec): DbIo {
     const coreDbIo = {
-      write: spec.coreDbIo && spec.coreDbIo.write ||
-        newCoreDbIo({ type: 'write' , opts: spec.write }),
-      read: spec.coreDbIo && spec.coreDbIo.read ||
-        newCoreDbIo({ type: 'read' , opts: spec.read })
+      write: getCoreDbIo('write', spec.coreDbIo || spec.write),
+      read: getCoreDbIo('read', spec.coreDbIo || spec.read)
     }
     return new DbIoClass(coreDbIo)
   }
@@ -150,8 +148,21 @@ DbIoClass.prototype.read = createDbIoMethod('read')
 
 /**
  * @private
+ * @function getCoreDbIo
+ * @param {'write'|'read'} type
+ * @param {CoreDbIo|WriteOpts|ReadOpts} opts
+ * @return {CoreDbIo}
+ */
+function getCoreDbIo (type: 'write'|'read',
+opts: CoreDbIo|WriteOpts|ReadOpts): CoreDbIo {
+  return isCoreDbIoLike(opts) ?
+  <CoreDbIo> opts : newCoreDbIo({ type: type , opts: <WriteOpts|ReadOpts> opts })
+}
+
+/**
+ * @private
  * @function createDbIoMethod
- * @prop {'write'|'read'} ioKey type of IO method to generate
+ * @param {'write'|'read'} ioKey type of IO method to generate
  * @return {DbIoFactoryMethod}
  */
 function createDbIoMethod (ioKey: 'write'|'read'): DbIoFactoryMethod {
@@ -186,17 +197,6 @@ function coreDbIoKeyFor (src: DocRef[]|DocIdRange|DocRevs|DocRef): 'bulk'|'unit'
  */
 interface DbIoFactoryMethod {
   (db: any): (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
-}
-
-/**
- * @private
- * @function isDbIoFactoryMethod
- * duck-type validation
- * @param {any} val
- * @return {val is DbIoFactoryMethod}
- */
-function isDbIoFactoryMethod (val: any): val is DbIoFactoryMethod {
-  return isFunction(val) && (val.length === 1)
 }
 
 /**

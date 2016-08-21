@@ -88,6 +88,17 @@ export function isPouchDbLike (val: any): boolean {
 }
 
 /**
+ * @public
+ * @function CoreDbIoDuckTypable
+ * duck-type validation: checks for `unit` and `bulk` methods.
+ * @prop {any} val?
+ * @return {val is CoreDbIo}
+ */
+export interface CoreDbIoDuckTypable {
+  (val?: any): val is CoreDbIo
+}
+
+/**
  * @private
  */
 abstract class CoreDbIoClass implements CoreDbIo {
@@ -99,6 +110,10 @@ abstract class CoreDbIoClass implements CoreDbIo {
   }
   static newInstance = <CoreDbIoFactory> function (spec: CoreDbIoSpec): CoreDbIo {
     return new CoreDbIoClass.types[spec.type](spec.opts)
+  }
+  static isCoreDbIoLike: CoreDbIoDuckTypable =
+  function (val?: any): val is CoreDbIo {
+    return isObject(val) && isFunction(val.unit) && isFunction(val.bulk)
   }
 
   abstract unit (db: any): (src: DocRef|DocRevs) => Promise<DocRef[]|DocRef>
@@ -184,6 +199,8 @@ function bulkOptsFrom (refs: DocRef[]|DocIdRange) {
 interface AllDocsResult {
   rows: { doc: DocRef }[]
 }
+
+export const isCoreDbIoLike = CoreDbIoClass.isCoreDbIoLike
 
 const newCoreDbIo = CoreDbIoClass.newInstance
 export default newCoreDbIo
