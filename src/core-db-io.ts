@@ -145,8 +145,12 @@ class CoreDbWriteClass extends CoreDbIoClass {
 
 class CoreDbReadClass extends CoreDbIoClass {
   unit (db:any): (ref: DocRef|DocRevs) => Promise<DocRef[]|DocRef> {
-    return ref => db.get(ref._id, assign({}, this.spec, unitOptsFrom(ref)))
+    return ref => {
+      assert(isValidDocRef(ref) , 'invalid document reference')
+      const opts = assign({}, this.spec, unitOptsFrom(ref))
+      return db.get(ref._id, opts)
       .then(docsFromRevs)
+    }
   }
 
   bulk (db: any): (refs: DocRef[]|DocIdRange) => Promise<DocRef[]> {
@@ -154,7 +158,6 @@ class CoreDbReadClass extends CoreDbIoClass {
       assert(isValidDocRefArray(refs) || isValidDocIdRange(refs),
       'invalid document reference')
       const opts = assign({}, this.spec, bulkOptsFrom(refs))
-      if (Array.isArray(opts.keys) && !opts.keys.length) opts.keys = 'all'
       return db.allDocs(opts)
       .then((res: AllDocsResult) => res.rows.map(row => row.doc))
     }
