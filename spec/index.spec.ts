@@ -134,6 +134,14 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
   'Observable<DocRef[]|DocRef>', () => {
     describe('when given an Observable, a Promise-like or an Array-like object',
     () => {
+      let toPouchDbWriteResult: (ref: { _id: string, _rev?: string}) => Object
+      beforeEach(() => {
+        toPouchDbWriteResult = (ref: { _id: string, _rev?: string}) => ({
+          ok: true,
+          id: ref._id,
+          rev: ref._rev
+        })
+      })
       it('should return an Observable', () => {
         ;[ Observable.from([ 'foo' ]), Promise.resolve('foo'), [ 'foo' ]]
         .map(arg => rxPouchDb.write(arg))
@@ -146,7 +154,8 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         beforeEach((done) => {
           doc = { _id: 'foo' }
           ref = { _id: 'foo', _rev: 'bar'}
-          pouchdbMock.put.and.returnValue(Promise.resolve(ref))
+          pouchdbMock.put
+          .and.returnValue(Promise.resolve(toPouchDbWriteResult(ref)))
 
           rxPouchDb.write(Observable.of(doc))
           .do(next, error, () => {})
@@ -170,7 +179,8 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         beforeEach((done) => {
           docs = [ { _id: 'foo' }, { _id: 'bar' } ]
           refs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
-          pouchdbMock.bulkDocs.and.returnValue(Promise.resolve(refs))
+          pouchdbMock.bulkDocs
+          .and.returnValue(Promise.resolve(refs.map(toPouchDbWriteResult)))
 
           rxPouchDb.write(Observable.of(docs))
           .do(next, error, () => {})
