@@ -313,6 +313,36 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
           expect(res.err).not.toBeDefined()
         })
       })
+      describe('that emits an empty array', () => {
+        let refs: any[]
+        let docs: any
+        let res: any
+        beforeEach((done) => {
+          refs = [ ]
+          docs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
+          res = {}
+          pouchdbMock.allDocs
+          .and.returnValue(Promise.resolve({
+            rows: docs.map((doc: any) => ({ doc: doc }))
+          }))
+
+          rxPouchDb.read(Observable.of(refs))
+          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should fetch all documents from the wrapped db', () => {
+          expect(pouchdbMock.allDocs.calls.allArgs()).toEqual([
+            [ jasmine.objectContaining({
+              keys: 'all'
+            }) ]
+          ])
+        })
+        it('should return an Observable that emits an array of all the ' +
+        'documents fetched from the db', () => {
+          expect(res.val).toEqual(docs)
+          expect(res.err).not.toBeDefined()
+        })
+      })
     })
   })
 })

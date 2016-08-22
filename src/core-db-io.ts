@@ -150,8 +150,14 @@ class CoreDbReadClass extends CoreDbIoClass {
   }
 
   bulk (db: any): (refs: DocRef[]|DocIdRange) => Promise<DocRef[]> {
-    return refs => db.allDocs(assign({}, this.spec, bulkOptsFrom(refs)))
+    return refs => {
+      assert(isValidDocRefArray(refs) || isValidDocIdRange(refs),
+      'invalid document reference')
+      const opts = assign({}, this.spec, bulkOptsFrom(refs))
+      if (Array.isArray(opts.keys) && !opts.keys.length) opts.keys = 'all'
+      return db.allDocs(opts)
       .then((res: AllDocsResult) => res.rows.map(row => row.doc))
+    }
   }
 
   constructor (private spec: ReadOpts) {
@@ -166,6 +172,10 @@ function isValidDocRef (val: any): val is DocRef {
 function isValidDocRefArray (val: any): val is DocRef[] {
   return Array.isArray(val) && val
   .every((val: any) => isValidDocRef(val))
+}
+
+function isValidDocIdRange (val: any) : val is DocIdRange {
+  return isObject(val) && isString(val.startkey) && isString(val.endkey)
 }
 
 function toDocRefs (res: any[]): DocRef[] {
