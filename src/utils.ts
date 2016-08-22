@@ -26,16 +26,6 @@ export function isObject (val: any): val is Object {
 }
 /**
  * @public
- * @function isArrayLike
- * @param {any} val
- * @return {val is Object} true if `val` is an {Object}
- * with a {number} length property
- */
-export function isArrayLike (val: any): val is Object {
-  return isObject(val) && isNumber(val.length)
-}
-/**
- * @public
  * @param {any} val
  * @return {val is Function}
  */
@@ -49,14 +39,6 @@ export function isFunction (val: any): val is Function {
  */
 export function isString (val: any): val is string {
   return typeof val === 'string'
-}
-/**
- * @public
- * @param {any} val
- * @return {val is number}
- */
-export function isNumber (val: any): val is number {
-  return typeof val === 'number'
 }
 /**
  * @public
