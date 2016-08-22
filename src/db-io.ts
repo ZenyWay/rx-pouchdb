@@ -13,7 +13,6 @@
  */
 ;
 import { Observable } from '@reactivex/rxjs'
-import Promise = require('bluebird')
 import { WriteOpts, ReadOpts, DocRef, DocIdRange, DocRevs, DocId } from './'
 import newCoreDbIo,
   { CoreDbIo, isCoreDbIoLike, CoreDbIoMethod } from './core-db-io'
@@ -122,12 +121,16 @@ class DbIoClass implements DbIo {
    * @public
    * @see {DbIo#write}
    */
-  write: (src: DocRef[]|DocRef) => Observable<DocRef[]|DocRef>
+  write (src: DocRef[]|DocRef): Observable<DocRef[]|DocRef> {
+    return Observable.fromPromise(this.coreDbIo.write.access(src))
+  }
   /**
    * @public
    * @see {DbIo#read}
    */
-  read: (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
+  read (src: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef> {
+    return Observable.fromPromise(this.coreDbIo.read.access(src))
+  }
   /**
    * @private
    * @constructor
@@ -135,9 +138,6 @@ class DbIoClass implements DbIo {
    */
   constructor (private coreDbIo: { write: CoreDbIo, read: CoreDbIo }) {}
 }
-
-DbIoClass.prototype.write = createDbIoMethod('write')
-DbIoClass.prototype.read = createDbIoMethod('read')
 
 /**
  * @private
@@ -154,41 +154,6 @@ opts: CoreDbIo|WriteOpts|ReadOpts): CoreDbIo {
     type: type,
     opts: <WriteOpts|ReadOpts> opts
   })
-}
-
-/**
- * @private
- * @function createDbIoMethod
- * @param {'write'|'read'} ioKey type of IO method to generate
- * @return {DbIoFactoryMethod}
- */
-function createDbIoMethod (ioKey: 'write'|'read'): DbIoMethod {
-  return function (src: DocRef[]|DocIdRange|DocRevs|DocRef) {
-    const coreDbIoKey = coreDbIoKeyFor(src)
-
-    return Observable.fromPromise(Promise.try(() =>
-      this.coreDbIo[ioKey][coreDbIoKey](src)))
-    .do(logRx(`rx-pouchdb:${ioKey}:${coreDbIoKey}`))
-  }
-}
-
-/**
- * @private
- * @function coreDbIoKeyFor
- * @param {DocRef[]|DocIdRange|DocRevs|DocRef} src
- * @return {'bulk'|'unit'}
- */
-function coreDbIoKeyFor (src: DocRef[]|DocIdRange|DocRevs|DocRef): 'bulk'|'unit' {
-  return !src || isString((<any>src)._id) ? 'unit' : 'bulk'
-}
-
-/**
- * @private
- * @method DbIoMethod
- * store/read documents to/from the wrapped {PouchDB} database.
- */
-interface DbIoMethod {
-  (src: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef>
 }
 
 /**

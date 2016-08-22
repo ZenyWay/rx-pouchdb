@@ -12,6 +12,7 @@
  * Limitations under the License.
  */
 ;
+import Promise = require('bluebird')
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 import { WriteOpts, ReadOpts, DocId, DocRef, DocRevs, DocIdRange } from './'
@@ -61,39 +62,16 @@ export interface CoreDbIoSpec {
 export interface CoreDbIo {
   /**
    * @public
-   * @method unit
-   * unit write or read access to the wrapped db
-   * @param {DocRef|DocRevs} src
+   * @method access
+   * unit or bulk access to the wrapped db.
+   * @param {DocRef[]|DocIdRange|DocRevs|DocRef} src
    * @return {Promise<DocRef[]|DocRef>}
    */
-  unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>
-  /**
-   * @public
-   * @method bulk
-   * bulk write or read access to the wrapped db
-   * @param {DocRef[]|DocIdRange} src
-   * @return {Promise<DocRef[]>}
-   */
-  bulk (src: DocRef[]|DocIdRange): Promise<DocRef[]>
+  access (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef>
 }
 
 export interface CoreDbIoMethod {
   (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef>
-}
-
-/**
- * @private
- * @function isPouchDbLike
- * duck-type checking
- * @prop {any} val
- * @return {boolean} true if val looks like
- * a PouchDb instance for the purpose of this module,
- * ie. it includes all the required methods
- */
-export function isPouchDbLike (val: any): boolean {
-  return isObject(val)
-  && [ 'get', 'put', 'allDocs', 'bulkDocs' ]
-  .every(key => isFunction(val[key]))
 }
 
 /**
@@ -126,9 +104,14 @@ abstract class CoreDbIoClass implements CoreDbIo {
     return isObject(val) && isFunction(val.unit) && isFunction(val.bulk)
   }
 
-  abstract unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>
+  access (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef> {
+    const key = coreDbIoKeyFor(src)
+    return Promise.try(() => <Promise<DocRef[]|DocRef>> this[key](src))
+  }
 
-  abstract bulk (src: DocRef[]|DocIdRange): Promise<DocRef[]>
+  protected abstract unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>;
+
+  protected abstract bulk (src: DocRef[]|DocIdRange): Promise<DocRef[]>;
 
   constructor (protected db: any) {}
 }
@@ -170,6 +153,31 @@ class CoreDbReadClass extends CoreDbIoClass {
   constructor (db: any, private spec: ReadOpts) {
     super(db)
   }
+}
+
+/**
+ * @private
+ * @function coreDbIoKeyFor
+ * @param {DocRef[]|DocIdRange|DocRevs|DocRef} src
+ * @return {'bulk'|'unit'}
+ */
+function coreDbIoKeyFor (src: DocRef[]|DocIdRange|DocRevs|DocRef): 'bulk'|'unit' {
+  return !src || isString((<any>src)._id) ? 'unit' : 'bulk'
+}
+
+/**
+ * @private
+ * @function isPouchDbLike
+ * duck-type checking
+ * @prop {any} val
+ * @return {boolean} true if val looks like
+ * a PouchDb instance for the purpose of this module,
+ * ie. it includes all the required methods
+ */
+function isPouchDbLike (val: any): boolean {
+  return isObject(val)
+  && [ 'get', 'put', 'allDocs', 'bulkDocs' ]
+  .every(key => isFunction(val[key]))
 }
 
 function isValidDocRefOrRevs (val: any): val is DocRef {
