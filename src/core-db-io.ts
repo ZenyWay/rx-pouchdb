@@ -70,10 +70,6 @@ export interface CoreDbIo {
   access (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef>
 }
 
-export interface CoreDbIoMethod {
-  (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef>
-}
-
 /**
  * @public
  * @function CoreDbIoDuckTypable
@@ -101,7 +97,7 @@ abstract class CoreDbIoClass implements CoreDbIo {
   }
   static isCoreDbIoLike: CoreDbIoDuckTypable =
   function (val?: any): val is CoreDbIo {
-    return isObject(val) && isFunction(val.unit) && isFunction(val.bulk)
+    return isObject(val) && isFunction(val.access)
   }
 
   access (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef> {
