@@ -55,10 +55,8 @@ export interface DbIoFactorySpec {
 /**
  * @public
  * @interface DbIo
- * a pair of factories that wrap a {PouchDb} instance
- * and return corresponding IO methods which
- * return an Observable, which emits the result
- * of the IO transaction.
+ * a pair of IO methods with which to store or read documents
+ * to/from the wrapped {PouchDB} database.
  */
 export interface DbIo {
   /**
