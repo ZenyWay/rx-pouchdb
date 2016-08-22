@@ -12,13 +12,14 @@
  * Limitations under the License.
  */
 ;
+import Promise = require('bluebird')
 import { Observable } from '@reactivex/rxjs'
 
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
 import newDbIo,
-{ DbIoFactory, DbIoFactorySpec, DbIo, isDbIoLike, isPouchDbLike } from './db-io'
+{ DbIoFactory, DbIoFactorySpec, DbIo, isDbIoLike } from './db-io'
 
 import { logRx, isObject } from './utils'
 
@@ -56,9 +57,9 @@ export interface RxPouchDbFactoryOpts {
   write?: WriteOpts
   /**
    * @public
-   * @prop {DbIo} dbIo?
+   * @prop {DbIo|Promise<DbIo>} dbIo?
    */
-  dbIo?: DbIo
+  dbIo?: DbIo|Promise<DbIo>
 }
 
 /**
@@ -336,13 +337,10 @@ class RxPouchDbClass implements RxPouchDb {
   function (db: any, opts?: RxPouchDbFactoryOpts): RxPouchDb {
     assert(isObject(db) && isValidFactoryOpts(opts), 'invalid argument')
 
-    const _db = Promise.resolve(db)
-    .then((db: any) => isPouchDbLike(db) ?
-      db : Promise.reject(new Error('invalid PouchDB instance')))
+    const dbIo = opts && opts.dbIo ? Promise.resolve(opts.dbIo)
+    : Promise.try(() => newDbIo(db, dbIoFactorySpecFrom(opts)))
 
-    const dbIo = opts && opts.dbIo || newDbIo(dbIoFactorySpecFrom(opts))
-
-    return new RxPouchDbClass(Observable.fromPromise(_db), dbIo)
+    return new RxPouchDbClass(Observable.from(dbIo))
   }
 
   /**
@@ -360,7 +358,7 @@ class RxPouchDbClass implements RxPouchDb {
   D extends VersionedDoc|(VersionedDoc&DocRevStatus)>
   (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>) => Observable<D[]|D>
 
-  constructor (private db: Observable<any>, private dbIo: DbIo) {}
+  constructor (private dbIo: Observable<DbIo>) {}
 }
 
 RxPouchDbClass.prototype.write = createRxDbIoMethod('write')
@@ -417,13 +415,13 @@ function dbIoFactorySpecFrom (opts: RxPouchDbFactoryOpts): DbIoFactorySpec {
  */
 function createRxDbIoMethod (ioKey: 'write'|'read') {
   return function <D extends DocRef[]|DocRef>
-  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) {
+  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
     const _src = toObservable(src)
     .do(logRx(`rx-pouchdb:${ioKey}:src`))
 
-    return (<Observable<any>> this.db)
-    .do(logRx(`rx-pouchdb:${ioKey}:db`))
-    .switchMap((db: any) => _src.concatMap(<DbIoMethod> this.dbIo[ioKey](db)))
+    return (<Observable<DbIo>> this.dbIo)
+    .switchMap(dbIo =>
+      _src.concatMap(src => (<DbIoMethod> dbIo[ioKey])(src)))
     .do(logRx(`rx-pouchdb:${ioKey}`))
   }
 }

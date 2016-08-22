@@ -16,9 +16,8 @@ import { Observable } from '@reactivex/rxjs'
 import Promise = require('bluebird')
 import { WriteOpts, ReadOpts, DocRef, DocIdRange, DocRevs, DocId } from './'
 import newCoreDbIo,
-  { CoreDbIo, isCoreDbIoLike, CoreDbIoMethod, isPouchDbLike } from './core-db-io'
+  { CoreDbIo, isCoreDbIoLike, CoreDbIoMethod } from './core-db-io'
 import { logRx, isObject, isFunction, isString } from './utils'
-export { isPouchDbLike }
 
 /**
  * @public
@@ -27,7 +26,7 @@ export { isPouchDbLike }
  * @return {DbIo}
  */
 export interface DbIoFactory {
-  (spec: DbIoFactorySpec): DbIo
+  (db: any, spec: DbIoFactorySpec): DbIo
 }
 
 /**
@@ -66,25 +65,20 @@ export interface DbIoFactorySpec {
 export interface DbIo {
   /**
    * @public
-   * @factory {DbIoFactoryMethod} write
-   * wrap a {PouchDb} instance and return an IO method
-   * for storing input documents to the database.
-   * the result of each storage operation is wrapped in a new Observable.
-   * @param {PouchDb} db
-   * @return {(src: DocRef[]|DocRef) => Observable<DocRef[]|DocRef>}
+   * @method write
+   * store input documents to the wrapped {PouchDB} database.
+   * @param {DocRef[]|DocRef} docs
+   * @return {Observable<DocRef[]|DocRef>}
    */
-  write (db: any): (src: DocRef[]|DocRef) => Observable<DocRef[]|DocRef>
+  write (docs: DocRef[]|DocRef): Observable<DocRef[]|DocRef>
   /**
    * @public
-   * @factory {DbIoFactoryMethod} read
-   * wrap a {PouchDb} instance and return an IO method
-   * for reading documents from the database.
-   * the result of each reading operation is wrapped in a new Observable.
-   * @param {PouchDb} db
-   * @return {(src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>}
+   * @method read
+   * read documents from the wrapped {PouchDB} database.
+   * @param {DocRef[]|DocIdRange|DocRevs|DocRef} refs
+   * @return {Observable<DocRef[]|DocRef>}
    */
-  read (db: any):
-  (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
+  read (refs: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef>
 }
 
 /**
@@ -109,10 +103,10 @@ class DbIoClass implements DbIo {
    * @see {DbIoFactory}
    */
   static newInstance: DbIoFactory =
-  function (spec: DbIoFactorySpec): DbIo {
+  function (db: any, spec: DbIoFactorySpec): DbIo {
     const coreDbIo = {
-      write: getCoreDbIo('write', spec.coreDbIo || spec.write),
-      read: getCoreDbIo('read', spec.coreDbIo || spec.read)
+      write: getCoreDbIo(db, 'write', spec.coreDbIo || spec.write),
+      read: getCoreDbIo(db, 'read', spec.coreDbIo || spec.read)
     }
     return new DbIoClass(coreDbIo)
   }
@@ -128,13 +122,12 @@ class DbIoClass implements DbIo {
    * @public
    * @see {DbIo#write}
    */
-  write: (db: any) => (src: DocRef[]|DocRef) => Observable<DocRef[]|DocRef>
+  write: (src: DocRef[]|DocRef) => Observable<DocRef[]|DocRef>
   /**
    * @public
    * @see {DbIo#read}
    */
-  read: (db: any) =>
-  (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
+  read: (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
   /**
    * @private
    * @constructor
@@ -149,14 +142,18 @@ DbIoClass.prototype.read = createDbIoMethod('read')
 /**
  * @private
  * @function getCoreDbIo
+ * @param {PouchDb} db
  * @param {'write'|'read'} type
  * @param {CoreDbIo|WriteOpts|ReadOpts} opts
  * @return {CoreDbIo}
  */
-function getCoreDbIo (type: 'write'|'read',
+function getCoreDbIo (db: any, type: 'write'|'read',
 opts: CoreDbIo|WriteOpts|ReadOpts): CoreDbIo {
-  return isCoreDbIoLike(opts) ?
-  <CoreDbIo> opts : newCoreDbIo({ type: type , opts: <WriteOpts|ReadOpts> opts })
+  return isCoreDbIoLike(opts) ? <CoreDbIo> opts : newCoreDbIo({
+    db: db,
+    type: type,
+    opts: <WriteOpts|ReadOpts> opts
+  })
 }
 
 /**
@@ -165,16 +162,13 @@ opts: CoreDbIo|WriteOpts|ReadOpts): CoreDbIo {
  * @param {'write'|'read'} ioKey type of IO method to generate
  * @return {DbIoFactoryMethod}
  */
-function createDbIoMethod (ioKey: 'write'|'read'): DbIoFactoryMethod {
-  return function (db: any) {
-    return (src: DocRef[]|DocIdRange|DocRevs|DocRef) => {
-      const coreDbIoKey = coreDbIoKeyFor(src)
-      const coreDbIoMethod: CoreDbIoMethod =
-      this.coreDbIo[ioKey][coreDbIoKey](db)
+function createDbIoMethod (ioKey: 'write'|'read'): DbIoMethod {
+  return function (src: DocRef[]|DocIdRange|DocRevs|DocRef) {
+    const coreDbIoKey = coreDbIoKeyFor(src)
 
-      return Observable.fromPromise(Promise.try(() => coreDbIoMethod(src)))
-      .do(logRx(`rx-pouchdb:${ioKey}:${coreDbIoKey}`))
-    }
+    return Observable.fromPromise(Promise.try(() =>
+      this.coreDbIo[ioKey][coreDbIoKey](src)))
+    .do(logRx(`rx-pouchdb:${ioKey}:${coreDbIoKey}`))
   }
 }
 
@@ -190,13 +184,11 @@ function coreDbIoKeyFor (src: DocRef[]|DocIdRange|DocRevs|DocRef): 'bulk'|'unit'
 
 /**
  * @private
- * @factory DbIoFactoryMethod
- * wrap a {PouchDb} instance and return an IO method
- * for storing/reading documents to/from the database.
- * the result of each IO operation is wrapped in a new Observable.
+ * @method DbIoMethod
+ * store/read documents to/from the wrapped {PouchDB} database.
  */
-interface DbIoFactoryMethod {
-  (db: any): (src: DocRef[]|DocIdRange|DocRevs|DocRef) => Observable<DocRef[]|DocRef>
+interface DbIoMethod {
+  (src: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef>
 }
 
 /**

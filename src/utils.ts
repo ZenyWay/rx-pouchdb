@@ -51,6 +51,6 @@ export function logRx <T> (label: string): Observer<T> {
   return {
     next: debug(`${label}:next`),
     error: debug(`${label}:err`),
-    complete: (<any>debug)(`${label}:done`)
+    complete: () => debug(`${label}:done`)('')
   }
 }

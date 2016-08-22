@@ -33,10 +33,17 @@ export interface CoreDbIoFactory {
  */
 export interface CoreDbIoSpec {
   /**
+   * @public
+   * @prop {PouchDB} db
+   */
+  db: any
+  /**
+   * @public
    * @prop {'write'|'read'} type of the CoreDbIo instance
    */
   type: 'write'|'read'
   /**
+   * @public
    * @prop {WriteOpts|ReadOpts} opts
    */
   opts: WriteOpts|ReadOpts
@@ -54,18 +61,20 @@ export interface CoreDbIoSpec {
 export interface CoreDbIo {
   /**
    * @public
-   * @factory {(db: any): (src: DocRef) => Promise<DocRef>} unit
-   * wrap a {PouchDb} instance and return an IO access method
-   * that returns a Promise of the result of the IO access operation.
-   * @param {PouchDb} db
-   * @return {(src: DocRef) => Promise<DocRef>}
+   * @method unit
+   * unit write or read access to the wrapped db
+   * @param {DocRef|DocRevs} src
+   * @return {Promise<DocRef[]|DocRef>}
    */
-  unit (db: any): (src: DocRef|DocRevs) => Promise<DocRef[]|DocRef>
+  unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>
   /**
    * @public
-   * @factory
+   * @method bulk
+   * bulk write or read access to the wrapped db
+   * @param {DocRef[]|DocIdRange} src
+   * @return {Promise<DocRef[]>}
    */
-  bulk (db: any): (src: DocRef[]|DocIdRange) => Promise<DocRef[]>
+  bulk (src: DocRef[]|DocIdRange): Promise<DocRef[]>
 }
 
 export interface CoreDbIoMethod {
@@ -109,62 +118,57 @@ abstract class CoreDbIoClass implements CoreDbIo {
     }
   }
   static newInstance = <CoreDbIoFactory> function (spec: CoreDbIoSpec): CoreDbIo {
-    return new CoreDbIoClass.types[spec.type](spec.opts)
+    assert(isPouchDbLike(spec.db), 'invalid PouchDB instance')
+    return new CoreDbIoClass.types[spec.type](spec.db, spec.opts)
   }
   static isCoreDbIoLike: CoreDbIoDuckTypable =
   function (val?: any): val is CoreDbIo {
     return isObject(val) && isFunction(val.unit) && isFunction(val.bulk)
   }
 
-  abstract unit (db: any): (src: DocRef|DocRevs) => Promise<DocRef[]|DocRef>
+  abstract unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>
 
-  abstract bulk (db: any): (src: DocRef[]|DocIdRange) => Promise<DocRef[]>
+  abstract bulk (src: DocRef[]|DocIdRange): Promise<DocRef[]>
+
+  constructor (protected db: any) {}
 }
 
 class CoreDbWriteClass extends CoreDbIoClass {
-  unit (db: any): (doc: DocRef) => Promise<DocRef> {
-    return (doc: DocRef) => {
-      assert(isValidDocRef(doc), 'invalid document')
-      return db.put(doc, this.spec)
-      .then(toDocRef)
-    }
+  unit (doc: DocRef): Promise<DocRef> {
+    assert(isValidDocRef(doc), 'invalid document')
+    return this.db.put(doc, this.spec)
+    .then(toDocRef)
   }
 
-  bulk (db: any): (docs: DocRef[]) => Promise<DocRef[]> {
-    return (docs: DocRef[]) => {
-      assert(isValidDocRefArray(docs), 'invalid document')
-      return db.bulkDocs(docs, this.spec)
-      .then(toDocRefs)
-    }
+  bulk (docs: DocRef[]): Promise<DocRef[]> {
+    assert(isValidDocRefArray(docs), 'invalid document')
+    return this.db.bulkDocs(docs, this.spec)
+    .then(toDocRefs)
   }
 
-  constructor (private spec: WriteOpts) {
-    super()
+  constructor (db: any, private spec: WriteOpts) {
+    super(db)
   }
 }
 
 class CoreDbReadClass extends CoreDbIoClass {
-  unit (db:any): (ref: DocRef|DocRevs) => Promise<DocRef[]|DocRef> {
-    return ref => {
-      assert(isValidDocRefOrRevs(ref), 'invalid document reference')
-      const opts = assign({}, this.spec, unitOptsFrom(ref))
-      return db.get(ref._id, opts)
-      .then(docsFromRevs)
-    }
+  unit (ref: DocRef|DocRevs): Promise<DocRef[]|DocRef> {
+    assert(isValidDocRefOrRevs(ref), 'invalid document reference')
+    const opts = assign({}, this.spec, unitOptsFrom(ref))
+    return this.db.get(ref._id, opts)
+    .then(docsFromRevs)
   }
 
-  bulk (db: any): (refs: DocRef[]|DocIdRange) => Promise<DocRef[]> {
-    return refs => {
-      assert(isValidDocRefArray(refs) || isValidDocIdRange(refs),
-      'invalid document reference')
-      const opts = assign({}, this.spec, bulkOptsFrom(refs))
-      return db.allDocs(opts)
-      .then((res: AllDocsResult) => res.rows.map(row => row.doc))
-    }
+  bulk (refs: DocRef[]|DocIdRange): Promise<DocRef[]> {
+    assert(isValidDocRefArray(refs) || isValidDocIdRange(refs),
+    'invalid document reference')
+    const opts = assign({}, this.spec, bulkOptsFrom(refs))
+    return this.db.allDocs(opts)
+    .then((res: AllDocsResult) => res.rows.map(row => row.doc))
   }
 
-  constructor (private spec: ReadOpts) {
-    super()
+  constructor (db: any, private spec: ReadOpts) {
+    super(db)
   }
 }
 

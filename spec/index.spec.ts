@@ -77,18 +77,17 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
       results = types
       .filter(val => val && (typeof val === 'object'))
       .reduce((args, arg) => args.concat([ arg, Promise.resolve(arg) ]), [])
-      .map((val: any) => newRxPouchDb(val, { dbIo: dbIoMock }))
+      .map((val: any) => newRxPouchDb(val))
     })
     it('should return a `RxPouchDb` object with `write` and `read` methods ' +
-    'that emit an `invalid PouchDB instance` Error', (done) => {
+    'that emit an `invalid PouchDB instance` AssertionError', (done) => {
       Observable.from(results
       .reduce((results:Observable<any>[], rxPouchDb: RxPouchDb) =>
         results.concat([ rxPouchDb.write(docs), rxPouchDb.read(docs) ]), [])
       .map(result => result
         .isEmpty() // should never emit
         .catch((err, caught) => {
-          expect(err).toEqual(jasmine.any(Error))
-          expect(err.name).toBe('Error')
+          expect(err).toEqual(jasmine.any(AssertionError))
           expect(err.message).toBe('invalid PouchDB instance')
           return Observable.empty()
         })))
@@ -98,9 +97,10 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
   })
   describe('when called with an `opts` argument', () => {
     describe('with an `opts.dbIo` instance', () => {
-      describe('that is DbIo-like', () => {
+      describe('that is DbIo-like or resolve to a DbIo-like instance', () => {
         beforeEach((done) => {
           const rxPouchDb = newRxPouchDb(pouchdbMock, { dbIo: dbIoMock })
+          dbIoMock.write.and.returnValue(Observable.empty())
           rxPouchDb.write([{ _id: 'foo' }])
           .subscribe(() => {}, schedule(done), schedule(done))
         })
