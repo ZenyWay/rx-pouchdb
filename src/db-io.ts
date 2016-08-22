@@ -185,7 +185,7 @@ function createDbIoMethod (ioKey: 'write'|'read'): DbIoFactoryMethod {
  * @return {'bulk'|'unit'}
  */
 function coreDbIoKeyFor (src: DocRef[]|DocIdRange|DocRevs|DocRef): 'bulk'|'unit' {
-  return !isString((<any>src)._id) ? 'bulk' : 'unit'
+  return !src || isString((<any>src)._id) ? 'unit' : 'bulk'
 }
 
 /**

@@ -174,7 +174,7 @@ function isValidDocRefOrRevs (val: any): val is DocRef {
 }
 
 function isValidDocRef (val: any): val is DocRef {
-  return isValidDocId(val) && (!val._ref || isString(val._ref))
+  return isValidDocId(val) && (!val._rev || isString(val._rev))
 }
 
 function isValidDocId (val: any): val is DocId {
