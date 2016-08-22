@@ -7,16 +7,16 @@
 thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
-# <a name="api"></a> API v1.0.0 experimental
+# <a name="api"></a> API v1.0.1 experimental
 `ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
 Coded in `Typescript 2`.
 
 ## specs
-run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.0-experimental/spec/web/index.html)
+run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.1-experimental/spec/web/index.html)
 in your browser.
 
 ## example
-a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.0-experimental/spec/example/index.html)
+a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.1-experimental/spec/example/index.html)
 in the browser console,
 or by cloning this repository and running the following commands from a terminal:
 ```bash
