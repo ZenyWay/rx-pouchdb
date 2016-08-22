@@ -309,6 +309,41 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
           expect(error).not.toHaveBeenCalled()
         })
       })
+      describe('that emits a valid document id range object ' +
+      '{ startkey: string, endkey: string }', () => {
+        let ref: any
+        let docs: any[]
+        beforeEach((done) => {
+          ref = { startkey: 'foo', endkey: 'bar'}
+          docs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
+          pouchdbMock.allDocs
+          .and.returnValue(Promise.resolve({
+            rows: docs.map((doc: any) => ({ doc: doc }))
+          }))
+
+          rxPouchDb.read(Observable.of(ref))
+          .do(next, error, () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should fetch the referenced documents from the wrapped db', () => {
+          expect(pouchdbMock.allDocs.calls.allArgs()).toEqual([
+            [ jasmine.objectContaining(ref)]
+          ])
+          expect(pouchdbMock.allDocs)
+          .not.toHaveBeenCalledWith(jasmine.objectContaining({
+            key: jasmine.any(String)
+          }))
+          expect(pouchdbMock.allDocs)
+          .not.toHaveBeenCalledWith(jasmine.objectContaining({
+            keys: jasmine.any(Array)
+          }))
+        })
+        it('should return an Observable that emits the referenced documents ' +
+        'fetched from the db', () => {
+          expect(next.calls.allArgs()).toEqual([ [ docs ] ])
+          expect(error).not.toHaveBeenCalled()
+        })
+      })
     })
   })
 })
