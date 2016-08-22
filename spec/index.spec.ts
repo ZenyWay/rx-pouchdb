@@ -256,13 +256,14 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
       describe('that emits a valid reference object of document revisions ' +
       '{ _id: string, _revs: string[] }', () => {
         let refs: any
-        let revs: any[]
+        let docs: any[]
         let res: any
         beforeEach((done) => {
           refs = { _id: 'foo', _revs: [ 'bar' ]}
-          revs = [ { ok: { _id: 'foo', _rev: 'bar' } } ]
+          docs = [ { _id: 'foo', _rev: 'bar' } ]
           res = {}
-          pouchdbMock.get.and.returnValue(Promise.resolve(revs))
+          pouchdbMock.get
+          .and.returnValue(Promise.resolve(docs.map(doc => ({ ok: doc }))))
 
           rxPouchDb.read(Observable.of(refs))
           .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
@@ -276,7 +277,39 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         })
         it('should return an Observable that emits the referenced document ' +
         'revisions fetched from the db', () => {
-          expect(res.val).toEqual([ revs[0].ok ])
+          expect(res.val).toEqual(docs)
+          expect(res.err).not.toBeDefined()
+        })
+      })
+      describe('that emits an array of valid document reference objects ' +
+      '[ { _id: string, _rev?: string } ]', () => {
+        let refs: any[]
+        let docs: any
+        let res: any
+        beforeEach((done) => {
+          refs = [ { _id: 'foo' }, { _id: 'bar' } ]
+          docs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
+          res = {}
+          pouchdbMock.allDocs
+          .and.returnValue(Promise.resolve({
+            rows: docs.map((doc: any) => ({ doc: doc }))
+          }))
+
+          rxPouchDb.read(Observable.of(refs))
+          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .subscribe(() => {}, schedule(done), schedule(done))
+        })
+        it('should fetch all documents referenced in the array ' +
+        'from the wrapped db', () => {
+          expect(pouchdbMock.allDocs.calls.allArgs()).toEqual([
+            [ jasmine.objectContaining({
+              keys: refs.map(ref => ref._id)
+            }) ]
+          ])
+        })
+        it('should return an Observable that emits an array of the ' +
+        'documents fetched from the db', () => {
+          expect(res.val).toEqual(docs)
           expect(res.err).not.toBeDefined()
         })
       })
