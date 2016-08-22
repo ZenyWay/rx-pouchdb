@@ -146,8 +146,7 @@ class CoreDbWriteClass extends CoreDbIoClass {
 class CoreDbReadClass extends CoreDbIoClass {
   unit (db:any): (ref: DocRef|DocRevs) => Promise<DocRef[]|DocRef> {
     return ref => {
-      assert(isValidDocRef(ref) || isValidDocRevs(ref),
-      'invalid document reference')
+      assert(isValidDocRefOrRevs(ref), 'invalid document reference')
       const opts = assign({}, this.spec, unitOptsFrom(ref))
       return db.get(ref._id, opts)
       .then(docsFromRevs)
@@ -169,8 +168,9 @@ class CoreDbReadClass extends CoreDbIoClass {
   }
 }
 
-function isValidDocRevs (val: any): val is DocRef {
-  return isValidDocId(val) && (!val._revs || isString(val._revs))
+function isValidDocRefOrRevs (val: any): val is DocRef {
+  return isValidDocRef(val) &&
+  (!val._revs || isString(val._revs) || Array.isArray(val._revs))
 }
 
 function isValidDocRef (val: any): val is DocRef {
