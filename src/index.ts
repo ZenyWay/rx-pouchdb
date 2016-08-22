@@ -347,22 +347,33 @@ class RxPouchDbClass implements RxPouchDb {
    * @public
    * @see {RxPouchDb#write}
    */
-  write: <D extends VersionedDoc[]|VersionedDoc>
-  (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => Observable<DocRef[]|DocRef>
+  write <D extends VersionedDoc[]|VersionedDoc>
+  (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
+    return this.access('write', docs)
+  }
 
   /**
    * @public
    * @see {RxPouchDb#read}
    */
-  read: <R extends DocRef[]|DocIdRange|DocRevs|DocRef,
-  D extends VersionedDoc|(VersionedDoc&DocRevStatus)>
-  (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>) => Observable<D[]|D>
+  read <R extends DocRef[]|DocIdRange|DocRevs|DocRef>
+  (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>): Observable<DocRef[]|DocRef> {
+    return this.access('read', refs)
+  }
+
+  private access <D extends DocRef[]|DocIdRange|DocRevs|DocRef>
+  (ioKey: 'write'|'read', src: Observable<D>|PromiseLike<D>|ArrayLike<D>)
+  : Observable<DocRef[]|DocRef> {
+    const _src = toObservable(src)
+    .do(logRx(`rx-pouchdb:${ioKey}:src`))
+
+    return this.dbIo
+    .switchMap(dbIo => _src.concatMap(src => (<DbIoMethod> dbIo[ioKey])(src)))
+    .do(logRx(`rx-pouchdb:${ioKey}`))
+  }
 
   constructor (private dbIo: Observable<DbIo>) {}
 }
-
-RxPouchDbClass.prototype.write = createRxDbIoMethod('write')
-RxPouchDbClass.prototype.read = createRxDbIoMethod('read')
 
 /**
  * @public
@@ -403,26 +414,6 @@ function dbIoFactorySpecFrom (opts: RxPouchDbFactoryOpts): DbIoFactorySpec {
       opts && opts.read),
     write: assign({}, RxPouchDbClass.newInstance.defaults.write,
       opts && opts.write)
-  }
-}
-
-/**
- * @private
- * @factory createRxDbIoMethod
- * @param {'write'|'read'} ioKey
- * @return {<D extends DocRef[]|DocRef>
-  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>) => Observable<DocRef[]|DocRef>}
- */
-function createRxDbIoMethod (ioKey: 'write'|'read') {
-  return function <D extends DocRef[]|DocRef>
-  (src: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
-    const _src = toObservable(src)
-    .do(logRx(`rx-pouchdb:${ioKey}:src`))
-
-    return (<Observable<DbIo>> this.dbIo)
-    .switchMap(dbIo =>
-      _src.concatMap(src => (<DbIoMethod> dbIo[ioKey])(src)))
-    .do(logRx(`rx-pouchdb:${ioKey}`))
   }
 }
 
