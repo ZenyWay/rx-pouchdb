@@ -14,7 +14,7 @@
 ;
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
-import { WriteOpts, ReadOpts, DocRef, DocRevs, DocIdRange } from './'
+import { WriteOpts, ReadOpts, DocId, DocRef, DocRevs, DocIdRange } from './'
 import { isObject, isFunction, isString } from './utils'
 
 /**
@@ -146,7 +146,8 @@ class CoreDbWriteClass extends CoreDbIoClass {
 class CoreDbReadClass extends CoreDbIoClass {
   unit (db:any): (ref: DocRef|DocRevs) => Promise<DocRef[]|DocRef> {
     return ref => {
-      assert(isValidDocRef(ref) , 'invalid document reference')
+      assert(isValidDocRef(ref) || isValidDocRevs(ref),
+      'invalid document reference')
       const opts = assign({}, this.spec, unitOptsFrom(ref))
       return db.get(ref._id, opts)
       .then(docsFromRevs)
@@ -168,17 +169,33 @@ class CoreDbReadClass extends CoreDbIoClass {
   }
 }
 
+function isValidDocRevs (val: any): val is DocRef {
+  return isValidDocId(val) && (!val._revs || isString(val._revs))
+}
+
 function isValidDocRef (val: any): val is DocRef {
-  return val && isString(val._id) && (!val._ref || isString(val._ref))
+  return isValidDocId(val) && (!val._ref || isString(val._ref))
+}
+
+function isValidDocId (val: any): val is DocId {
+  return isObject(val) && isString(val._id)
 }
 
 function isValidDocRefArray (val: any): val is DocRef[] {
-  return Array.isArray(val) && val
-  .every((val: any) => isValidDocRef(val))
+  return Array.isArray(val) && val.every((val: any) => isValidDocRef(val))
 }
 
 function isValidDocIdRange (val: any) : val is DocIdRange {
   return isObject(val) && isString(val.startkey) && isString(val.endkey)
+}
+
+function unitOptsFrom (ref: DocRef|DocRevs) {
+  return isString((<DocRef> ref)._rev) ?
+  { rev : (<DocRef> ref)._rev } : { revs: (<DocRevs> ref)._revs}
+}
+
+function bulkOptsFrom (refs: DocRef[]|DocIdRange) {
+  return Array.isArray(refs) ? { keys : refs.map(ref => ref._id) } : refs
 }
 
 function toDocRefs (res: any[]): DocRef[] {
@@ -189,24 +206,8 @@ function toDocRef (res: any): DocRef {
   return res.ok ? { _id: res.id, _rev: res.rev } : res
 }
 
-function unitOptsFrom (ref: DocRef|DocRevs) {
-  return hasRevsArray(ref) ? { revs: toOptsRevs(ref._revs) } : { rev : ref._rev }
-}
-
-function hasRevsArray <D extends { _revs: string[] }> (val: any): val is D {
-  return Array.isArray(val._revs)
-}
-
-function toOptsRevs (revs: string[]): string[]|string {
-  return !revs.length ? 'all' : revs.slice()
-}
-
 function docsFromRevs (res: { ok: DocRef }[] | DocRef): DocRef[] | DocRef {
   return Array.isArray(res) ? res.map(res => res.ok) : res
-}
-
-function bulkOptsFrom (refs: DocRef[]|DocIdRange) {
-  return Array.isArray(refs) ? { keys : refs.map(ref => ref._id) } : refs
 }
 
 interface AllDocsResult {

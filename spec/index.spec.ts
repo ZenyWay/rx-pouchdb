@@ -122,10 +122,12 @@ describe('factory newRxPouchDb (db: Object|Promise<Object>, ' +
 
 describe('interface RxPouchDb: { write: Function, read: Function}', () => {
   let rxPouchDb: any
-  let setProperty: (obj: Object, key: string) => (val: any) => any
+  let next: any
+  let error: any
   beforeEach(() => {
     rxPouchDb = newRxPouchDb(pouchdbMock)
-    setProperty = (obj: Object, key: string) => (val:any) => obj[key] = val
+    next = jasmine.createSpy('next')
+    error = jasmine.createSpy('error')
   })
   describe('RxPouchDb#write: <D extends VersionedDoc[]|VersionedDoc> ' +
   '(docs: Observable<D>|PromiseLike<D>|ArrayLike<D>) => ' +
@@ -141,15 +143,13 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
       '{ _id: string, _rev?: string }', () => {
         let doc: any
         let ref: any
-        let res: any
         beforeEach((done) => {
           doc = { _id: 'foo' }
           ref = { _id: 'foo', _rev: 'bar'}
-          res = {}
           pouchdbMock.put.and.returnValue(Promise.resolve(ref))
 
           rxPouchDb.write(Observable.of(doc))
-          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .do(next, error, () => {})
           .subscribe(() => {}, schedule(done), schedule(done))
         })
         it('should store that document in the wrapped db', () => {
@@ -159,23 +159,21 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         })
         it('should return an Observable that emits the { _id: string, ' +
         '_rev: string } reference returned from the db', () => {
-          expect(res.val).toEqual(ref)
-          expect(res.err).not.toBeDefined()
+          expect(next.calls.allArgs()).toEqual([ [ ref ] ])
+          expect(error).not.toHaveBeenCalled()
         })
       })
       describe('that emits an array of document objects extending ' +
       '{ _id: string, _rev?: string }', () => {
         let docs: any[]
         let refs: any
-        let res: any
         beforeEach((done) => {
           docs = [ { _id: 'foo' }, { _id: 'bar' } ]
           refs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
-          res = {}
           pouchdbMock.bulkDocs.and.returnValue(Promise.resolve(refs))
 
           rxPouchDb.write(Observable.of(docs))
-          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .do(next, error, () => {})
           .subscribe(() => {}, schedule(done), schedule(done))
         })
         it('should store all documents from the array in the wrapped db', () => {
@@ -185,8 +183,8 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         })
         it('should return an Observable that emits an array of the ' +
         '{ _id: string, _rev: string } references returned from the db', () => {
-          expect(res.val).toEqual(refs)
-          expect(res.err).not.toBeDefined()
+          expect(next.calls.allArgs()).toEqual([ [ refs ] ])
+          expect(error).not.toHaveBeenCalled()
         })
       })
       describe('that emits anything else then a single valid document, or ' +
@@ -232,14 +230,12 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
       describe('that emits a valid document reference object ' +
       '{ _id: string, _rev?: string }', () => {
         let ref: any
-        let res: any
         beforeEach((done) => {
           ref = { _id: 'foo', _rev: 'bar'}
-          res = {}
           pouchdbMock.get.and.returnValue(Promise.resolve(ref))
 
           rxPouchDb.read(Observable.of(ref))
-          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .do(next, error, () => {})
           .subscribe(() => {}, schedule(done), schedule(done))
         })
         it('should fetch the referenced document from the wrapped db', () => {
@@ -249,54 +245,54 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         })
         it('should return an Observable that emits the referenced document ' +
         'fetched from the db', () => {
-          expect(res.val).toEqual(ref)
-          expect(res.err).not.toBeDefined()
+          expect(next.calls.allArgs()).toEqual([ [ ref ] ])
+          expect(error).not.toHaveBeenCalled()
         })
       })
       describe('that emits a valid reference object of document revisions ' +
-      '{ _id: string, _revs: string[] }', () => {
+      '{ _id: string, _revs: string[]|"all" }', () => {
         let refs: any
         let docs: any[]
-        let res: any
         beforeEach((done) => {
-          refs = { _id: 'foo', _revs: [ 'bar' ]}
+          refs = [
+            { _id: 'foo', _revs: [ 'bar' ] }, { _id: 'foo', _revs: 'all'}
+          ]
           docs = [ { _id: 'foo', _rev: 'bar' } ]
-          res = {}
           pouchdbMock.get
           .and.returnValue(Promise.resolve(docs.map(doc => ({ ok: doc }))))
 
-          rxPouchDb.read(Observable.of(refs))
-          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          rxPouchDb.read(Observable.from(refs))
+          .do(next, error, () => {})
           .subscribe(() => {}, schedule(done), schedule(done))
         })
         it('should fetch the referenced document versions from the wrapped db',
         () => {
-          expect(pouchdbMock.get.calls.allArgs()).toEqual([
-            [ refs._id, jasmine.objectContaining({ revs: refs._revs })]
-          ])
+          expect(pouchdbMock.get.calls.allArgs())
+          .toEqual(refs.map((ref: any) => [
+            ref._id,
+            jasmine.objectContaining({ revs: ref._revs })
+          ]))
         })
         it('should return an Observable that emits the referenced document ' +
         'revisions fetched from the db', () => {
-          expect(res.val).toEqual(docs)
-          expect(res.err).not.toBeDefined()
+          expect(next.calls.allArgs()).toEqual([ [ docs ], [ docs ] ])
+          expect(error).not.toHaveBeenCalled()
         })
       })
       describe('that emits an array of valid document reference objects ' +
       '[ { _id: string, _rev?: string } ]', () => {
         let refs: any[]
         let docs: any
-        let res: any
         beforeEach((done) => {
           refs = [ { _id: 'foo' }, { _id: 'bar' } ]
           docs = [ { _id: 'foo', _rev: 'foo'}, { _id: 'bar', _rev: 'bar' } ]
-          res = {}
           pouchdbMock.allDocs
           .and.returnValue(Promise.resolve({
             rows: docs.map((doc: any) => ({ doc: doc }))
           }))
 
           rxPouchDb.read(Observable.of(refs))
-          .do(setProperty(res, 'val'), setProperty(res, 'err'), () => {})
+          .do(next, error, () => {})
           .subscribe(() => {}, schedule(done), schedule(done))
         })
         it('should fetch all documents referenced in the array ' +
@@ -309,8 +305,8 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
         })
         it('should return an Observable that emits an array of the ' +
         'documents fetched from the db', () => {
-          expect(res.val).toEqual(docs)
-          expect(res.err).not.toBeDefined()
+          expect(next.calls.allArgs()).toEqual([ [ docs ] ])
+          expect(error).not.toHaveBeenCalled()
         })
       })
     })
