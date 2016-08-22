@@ -18,6 +18,8 @@ import { schedule, unwrap } from './support/jasmine-bluebird'
 import { __assign as assign } from 'tslib'
 import { AssertionError } from 'assert'
 import newRxPouchDb, { RxPouchDb } from '../src'
+import debug = require('debug')
+debug.disable()
 
 let pouchdbMock: any
 let dbIoMock: any
@@ -200,7 +202,7 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
       describe('that emits anything else then a single valid document, or ' +
       'an array of valid documents extending { _id: string, _rev?: string }',
       () => {
-        let results: any
+        let results: Observable<any>[]
         beforeEach(() => {
           const args: any[] = types.filter(val => typeof val !== 'string')
           .reduce((arr: any[], val: any) => arr
@@ -211,15 +213,16 @@ describe('interface RxPouchDb: { write: Function, read: Function}', () => {
           .reduce((arr: any[], val: any) => arr
             .concat([ val, [ val ]]), [])
 
-          results = rxPouchDb.write(Observable.from(args))
+          results = args.map(arg => rxPouchDb.write(Observable.of(arg)))
         })
         it('should emit an `invalid document` AssertionError', (done) => {
-          results.isEmpty() // should never emit
-          .catch((err: any, caught: Observable<any>) => {
-            expect(err).toEqual(jasmine.any(AssertionError))
-            expect(err.message).toBe('invalid document')
-            return Observable.empty()
-          })
+          Observable.from(results
+          .map(res => res.isEmpty() // should never emit
+            .catch((err: any, caught: Observable<any>) => {
+              expect(err).toEqual(jasmine.any(AssertionError))
+              expect(err.message).toBe('invalid document')
+              return Observable.empty()
+            })))
           .mergeAll()
           .subscribe(schedule(done.fail), schedule(done.fail), schedule(done))
         })
