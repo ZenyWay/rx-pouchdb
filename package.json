@@ -1,8 +1,9 @@
 {
   "name": "rx-pouchdb",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "aliasify": "spec/aliasify.conf.js",
   "scripts": {
     "predist": "mkdirp dist && rimraf dist/*",

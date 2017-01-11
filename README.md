@@ -12,11 +12,11 @@ thin RXJS abstraction layer for pouchDB with
 Coded in `Typescript 2`.
 
 ## specs
-run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.2-experimental/spec/web/index.html)
+run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.3-experimental/spec/web/index.html)
 in your browser.
 
 ## example
-a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.2-experimental/spec/example/index.html)
+a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.3-experimental/spec/example/index.html)
 in the browser console,
 or by cloning this repository and running the following commands from a terminal:
 ```bash
