@@ -1,20 +1,32 @@
 dist: trusty
-sudo: required
-language: node_js
-node_js:
-  - "4.4"
-  - "0.12"
+sudo: false
+
 addons:
   firefox: "latest"
+  apt:
+    sources:
+      - google-chrome
+    packages:
+      - google-chrome-stable
+
+language: node_js
+node_js:
+  - "6.9"
+cache:
+  directories: node_modules
+
+branches:
+  only: master
+
 before_install:
-  - if [[ `npm -v` != 3* ]]; then npm i -g npm@3; fi
-  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-  - sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-  - sudo apt-get update
-  - sudo apt-get install -y google-chrome-stable
+  - if [[ `npm -v` != 4* ]]; then npm i -g npm@4; fi
+
 before_script:
-  - export CHROME_BIN=google-chrome
-  - export DISPLAY=:99.0
-  - sh -e /etc/init.d/xvfb start
+  - "export CHROME_BIN=$(which google-chrome)"
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3 # https://docs.travis-ci.com/user/gui-and-headless-browsers/#Using-xvfb-to-Run-Tests-That-Require-a-GUI
+
 script: npm run test:ci
+
 after_script: npm run test:ci:coveralls

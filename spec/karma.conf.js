@@ -13,7 +13,7 @@
  */
 ;
 var browsers = [
-//  'Firefox',
+  'Firefox',
   process.env.TRAVIS ? 'Chrome--no-sandbox' : 'Chrome'
 ]
 
