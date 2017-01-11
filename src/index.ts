@@ -364,7 +364,7 @@ class RxPouchDbClass implements RxPouchDb {
   private access <D extends DocRef[]|DocIdRange|DocRevs|DocRef>
   (ioKey: 'write'|'read', src: Observable<D>|PromiseLike<D>|ArrayLike<D>)
   : Observable<DocRef[]|DocRef> {
-    const _src = toObservable(src)
+    const _src: Observable<D> = toObservable(src)
     .do(logRx(`rx-pouchdb:${ioKey}:src`))
 
     return this.dbIo
@@ -431,7 +431,7 @@ interface DbIoMethod {
 function toObservable <T> (val: Observable<T>|PromiseLike<T>|ArrayLike<T>):
 Observable<T> {
 	try {
-  	return Observable.from(<Observable<T>|Promise<T>|ArrayLike<T>> val)
+  	return Observable.from<T>(<Observable<T>|Promise<T>|ArrayLike<T>> val)
   } catch (err) {
   	return Observable.throw(err)
   }

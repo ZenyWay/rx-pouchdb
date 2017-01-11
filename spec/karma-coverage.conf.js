@@ -17,10 +17,43 @@ var assign = require('tslib').__assign
 module.exports = function (config) {
   'use strict'
   require('./karma.conf.js')(config) // setup test config
-  require('./support/karma-coverage.conf.js')(config) // add coverage
+  config.set({ // overwrites arrays
+    plugins: (config.plugins || []).concat([
+      'karma-coverage'
+    ]),
+    browserify: assign({}, config.browserify, { // https://github.com/nikku/karma-browserify#plugins
+      transform: (config.browserify.transform || []).concat([
+        [
+          'browserify-istanbul', {
+            'ignore': '**/spec/**',
+            'instrumenterConfig': { 'embedSource': true }
+          }
+        ]
+      ])
+    }),
+    reporters: [
+      'spec', 'coverage'
+    ],
+    coverageReporter: {
+      dir: './reports/coverage',
+      reporters: [
+        {
+          type: 'json',
+          subdir: browsername,
+          file: 'coverage.json'
+        }
+      ]
+    }
+  })
+/*
   config.set({ // overwrites arrays
     coverageReporter: assign({}, config.coverageReporter, {
-      dir: './reports/coverage'
+      dir: '../reports/coverage/proxy'
     })
   })
+*/
+}
+
+function browsername (browser) {
+  return browser.toLowerCase().split(/[ /-]/)[0]
 }

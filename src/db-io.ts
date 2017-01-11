@@ -119,14 +119,14 @@ class DbIoClass implements DbIo {
    * @see {DbIo#write}
    */
   write (src: DocRef[]|DocRef): Observable<DocRef[]|DocRef> {
-    return Observable.fromPromise(this.coreDbIo.write.access(src))
+    return Observable.fromPromise(Promise.resolve(this.coreDbIo.write.access(src)))
   }
   /**
    * @public
    * @see {DbIo#read}
    */
   read (src: DocRef[]|DocIdRange|DocRevs|DocRef): Observable<DocRef[]|DocRef> {
-    return Observable.fromPromise(this.coreDbIo.read.access(src))
+    return Observable.fromPromise(Promise.resolve(this.coreDbIo.read.access(src)))
   }
   /**
    * @private

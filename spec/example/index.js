@@ -1,4 +1,49 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function (global){
+'use strict';
+
+// compare and isBuffer taken from https://github.com/feross/buffer/blob/680e9e5e488f22aac27599a57dc844a6315928dd/index.js
+// original notice:
+
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+function compare(a, b) {
+  if (a === b) {
+    return 0;
+  }
+
+  var x = a.length;
+  var y = b.length;
+
+  for (var i = 0, len = Math.min(x, y); i < len; ++i) {
+    if (a[i] !== b[i]) {
+      x = a[i];
+      y = b[i];
+      break;
+    }
+  }
+
+  if (x < y) {
+    return -1;
+  }
+  if (y < x) {
+    return 1;
+  }
+  return 0;
+}
+function isBuffer(b) {
+  if (global.Buffer && typeof global.Buffer.isBuffer === 'function') {
+    return global.Buffer.isBuffer(b);
+  }
+  return !!(b != null && b._isBuffer);
+}
+
+// based on node assert, original notice:
+
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -23,14 +68,36 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// when used in node, this will actually load the util module we depend on
-// versus loading the builtin util module as happens otherwise
-// this is a bug in node module loading as far as I am concerned
 var util = require('util/');
-
-var pSlice = Array.prototype.slice;
 var hasOwn = Object.prototype.hasOwnProperty;
-
+var pSlice = Array.prototype.slice;
+var functionsHaveNames = (function () {
+  return function foo() {}.name === 'foo';
+}());
+function pToString (obj) {
+  return Object.prototype.toString.call(obj);
+}
+function isView(arrbuf) {
+  if (isBuffer(arrbuf)) {
+    return false;
+  }
+  if (typeof global.ArrayBuffer !== 'function') {
+    return false;
+  }
+  if (typeof ArrayBuffer.isView === 'function') {
+    return ArrayBuffer.isView(arrbuf);
+  }
+  if (!arrbuf) {
+    return false;
+  }
+  if (arrbuf instanceof DataView) {
+    return true;
+  }
+  if (arrbuf.buffer && arrbuf.buffer instanceof ArrayBuffer) {
+    return true;
+  }
+  return false;
+}
 // 1. The assert module provides functions that throw
 // AssertionError's when particular conditions are not met. The
 // assert module must conform to the following interface.
@@ -42,6 +109,19 @@ var assert = module.exports = ok;
 //                             actual: actual,
 //                             expected: expected })
 
+var regex = /\s*function\s+([^\(\s]*)\s*/;
+// based on https://github.com/ljharb/function.prototype.name/blob/adeeeec8bfcc6068b187d7d9fb3d5bb1d3a30899/implementation.js
+function getName(func) {
+  if (!util.isFunction(func)) {
+    return;
+  }
+  if (functionsHaveNames) {
+    return func.name;
+  }
+  var str = func.toString();
+  var match = str.match(regex);
+  return match && match[1];
+}
 assert.AssertionError = function AssertionError(options) {
   this.name = 'AssertionError';
   this.actual = options.actual;
@@ -55,18 +135,16 @@ assert.AssertionError = function AssertionError(options) {
     this.generatedMessage = true;
   }
   var stackStartFunction = options.stackStartFunction || fail;
-
   if (Error.captureStackTrace) {
     Error.captureStackTrace(this, stackStartFunction);
-  }
-  else {
+  } else {
     // non v8 browsers so we can have a stacktrace
     var err = new Error();
     if (err.stack) {
       var out = err.stack;
 
       // try to strip useless frames
-      var fn_name = stackStartFunction.name;
+      var fn_name = getName(stackStartFunction);
       var idx = out.indexOf('\n' + fn_name);
       if (idx >= 0) {
         // once we have located the function frame
@@ -83,31 +161,25 @@ assert.AssertionError = function AssertionError(options) {
 // assert.AssertionError instanceof Error
 util.inherits(assert.AssertionError, Error);
 
-function replacer(key, value) {
-  if (util.isUndefined(value)) {
-    return '' + value;
-  }
-  if (util.isNumber(value) && !isFinite(value)) {
-    return value.toString();
-  }
-  if (util.isFunction(value) || util.isRegExp(value)) {
-    return value.toString();
-  }
-  return value;
-}
-
 function truncate(s, n) {
-  if (util.isString(s)) {
+  if (typeof s === 'string') {
     return s.length < n ? s : s.slice(0, n);
   } else {
     return s;
   }
 }
-
+function inspect(something) {
+  if (functionsHaveNames || !util.isFunction(something)) {
+    return util.inspect(something);
+  }
+  var rawname = getName(something);
+  var name = rawname ? ': ' + rawname : '';
+  return '[Function' +  name + ']';
+}
 function getMessage(self) {
-  return truncate(JSON.stringify(self.actual, replacer), 128) + ' ' +
+  return truncate(inspect(self.actual), 128) + ' ' +
          self.operator + ' ' +
-         truncate(JSON.stringify(self.expected, replacer), 128);
+         truncate(inspect(self.expected), 128);
 }
 
 // At present only the three keys mentioned above are used and
@@ -167,24 +239,23 @@ assert.notEqual = function notEqual(actual, expected, message) {
 // assert.deepEqual(actual, expected, message_opt);
 
 assert.deepEqual = function deepEqual(actual, expected, message) {
-  if (!_deepEqual(actual, expected)) {
+  if (!_deepEqual(actual, expected, false)) {
     fail(actual, expected, message, 'deepEqual', assert.deepEqual);
   }
 };
 
-function _deepEqual(actual, expected) {
+assert.deepStrictEqual = function deepStrictEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'deepStrictEqual', assert.deepStrictEqual);
+  }
+};
+
+function _deepEqual(actual, expected, strict, memos) {
   // 7.1. All identical values are equivalent, as determined by ===.
   if (actual === expected) {
     return true;
-
-  } else if (util.isBuffer(actual) && util.isBuffer(expected)) {
-    if (actual.length != expected.length) return false;
-
-    for (var i = 0; i < actual.length; i++) {
-      if (actual[i] !== expected[i]) return false;
-    }
-
-    return true;
+  } else if (isBuffer(actual) && isBuffer(expected)) {
+    return compare(actual, expected) === 0;
 
   // 7.2. If the expected value is a Date object, the actual value is
   // equivalent if it is also a Date object that refers to the same time.
@@ -203,8 +274,22 @@ function _deepEqual(actual, expected) {
 
   // 7.4. Other pairs that do not both pass typeof value == 'object',
   // equivalence is determined by ==.
-  } else if (!util.isObject(actual) && !util.isObject(expected)) {
-    return actual == expected;
+  } else if ((actual === null || typeof actual !== 'object') &&
+             (expected === null || typeof expected !== 'object')) {
+    return strict ? actual === expected : actual == expected;
+
+  // If both values are instances of typed arrays, wrap their underlying
+  // ArrayBuffers in a Buffer each to increase performance
+  // This optimization requires the arrays to have the same type as checked by
+  // Object.prototype.toString (aka pToString). Never perform binary
+  // comparisons for Float*Arrays, though, since e.g. +0 === -0 but their
+  // bit patterns are not identical.
+  } else if (isView(actual) && isView(expected) &&
+             pToString(actual) === pToString(expected) &&
+             !(actual instanceof Float32Array ||
+               actual instanceof Float64Array)) {
+    return compare(new Uint8Array(actual.buffer),
+                   new Uint8Array(expected.buffer)) === 0;
 
   // 7.5 For all other Object pairs, including Array objects, equivalence is
   // determined by having the same number of owned properties (as verified
@@ -212,8 +297,22 @@ function _deepEqual(actual, expected) {
   // (although not necessarily the same order), equivalent values for every
   // corresponding key, and an identical 'prototype' property. Note: this
   // accounts for both named and indexed properties on Arrays.
+  } else if (isBuffer(actual) !== isBuffer(expected)) {
+    return false;
   } else {
-    return objEquiv(actual, expected);
+    memos = memos || {actual: [], expected: []};
+
+    var actualIndex = memos.actual.indexOf(actual);
+    if (actualIndex !== -1) {
+      if (actualIndex === memos.expected.indexOf(expected)) {
+        return true;
+      }
+    }
+
+    memos.actual.push(actual);
+    memos.expected.push(expected);
+
+    return objEquiv(actual, expected, strict, memos);
   }
 }
 
@@ -221,44 +320,44 @@ function isArguments(object) {
   return Object.prototype.toString.call(object) == '[object Arguments]';
 }
 
-function objEquiv(a, b) {
-  if (util.isNullOrUndefined(a) || util.isNullOrUndefined(b))
+function objEquiv(a, b, strict, actualVisitedObjects) {
+  if (a === null || a === undefined || b === null || b === undefined)
     return false;
-  // an identical 'prototype' property.
-  if (a.prototype !== b.prototype) return false;
   // if one is a primitive, the other must be same
-  if (util.isPrimitive(a) || util.isPrimitive(b)) {
+  if (util.isPrimitive(a) || util.isPrimitive(b))
     return a === b;
-  }
-  var aIsArgs = isArguments(a),
-      bIsArgs = isArguments(b);
+  if (strict && Object.getPrototypeOf(a) !== Object.getPrototypeOf(b))
+    return false;
+  var aIsArgs = isArguments(a);
+  var bIsArgs = isArguments(b);
   if ((aIsArgs && !bIsArgs) || (!aIsArgs && bIsArgs))
     return false;
   if (aIsArgs) {
     a = pSlice.call(a);
     b = pSlice.call(b);
-    return _deepEqual(a, b);
+    return _deepEqual(a, b, strict);
   }
-  var ka = objectKeys(a),
-      kb = objectKeys(b),
-      key, i;
+  var ka = objectKeys(a);
+  var kb = objectKeys(b);
+  var key, i;
   // having the same number of owned properties (keys incorporates
   // hasOwnProperty)
-  if (ka.length != kb.length)
+  if (ka.length !== kb.length)
     return false;
   //the same set of keys (although not necessarily the same order),
   ka.sort();
   kb.sort();
   //~~~cheap key test
   for (i = ka.length - 1; i >= 0; i--) {
-    if (ka[i] != kb[i])
+    if (ka[i] !== kb[i])
       return false;
   }
   //equivalent values for every corresponding key, and
   //~~~possibly expensive deep test
   for (i = ka.length - 1; i >= 0; i--) {
     key = ka[i];
-    if (!_deepEqual(a[key], b[key])) return false;
+    if (!_deepEqual(a[key], b[key], strict, actualVisitedObjects))
+      return false;
   }
   return true;
 }
@@ -267,10 +366,18 @@ function objEquiv(a, b) {
 // assert.notDeepEqual(actual, expected, message_opt);
 
 assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
-  if (_deepEqual(actual, expected)) {
+  if (_deepEqual(actual, expected, false)) {
     fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
   }
 };
+
+assert.notDeepStrictEqual = notDeepStrictEqual;
+function notDeepStrictEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'notDeepStrictEqual', notDeepStrictEqual);
+  }
+}
+
 
 // 9. The strict equality assertion tests strict equality, as determined by ===.
 // assert.strictEqual(actual, expected, message_opt);
@@ -297,28 +404,46 @@ function expectedException(actual, expected) {
 
   if (Object.prototype.toString.call(expected) == '[object RegExp]') {
     return expected.test(actual);
-  } else if (actual instanceof expected) {
-    return true;
-  } else if (expected.call({}, actual) === true) {
-    return true;
   }
 
-  return false;
+  try {
+    if (actual instanceof expected) {
+      return true;
+    }
+  } catch (e) {
+    // Ignore.  The instanceof check doesn't work for arrow functions.
+  }
+
+  if (Error.isPrototypeOf(expected)) {
+    return false;
+  }
+
+  return expected.call({}, actual) === true;
+}
+
+function _tryBlock(block) {
+  var error;
+  try {
+    block();
+  } catch (e) {
+    error = e;
+  }
+  return error;
 }
 
 function _throws(shouldThrow, block, expected, message) {
   var actual;
 
-  if (util.isString(expected)) {
+  if (typeof block !== 'function') {
+    throw new TypeError('"block" argument must be a function');
+  }
+
+  if (typeof expected === 'string') {
     message = expected;
     expected = null;
   }
 
-  try {
-    block();
-  } catch (e) {
-    actual = e;
-  }
+  actual = _tryBlock(block);
 
   message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
             (message ? ' ' + message : '.');
@@ -327,7 +452,14 @@ function _throws(shouldThrow, block, expected, message) {
     fail(actual, expected, 'Missing expected exception' + message);
   }
 
-  if (!shouldThrow && expectedException(actual, expected)) {
+  var userProvidedMessage = typeof message === 'string';
+  var isUnwantedException = !shouldThrow && util.isError(actual);
+  var isUnexpectedException = !shouldThrow && actual && !expected;
+
+  if ((isUnwantedException &&
+      userProvidedMessage &&
+      expectedException(actual, expected)) ||
+      isUnexpectedException) {
     fail(actual, expected, 'Got unwanted exception' + message);
   }
 
@@ -341,15 +473,15 @@ function _throws(shouldThrow, block, expected, message) {
 // assert.throws(block, Error_opt, message_opt);
 
 assert.throws = function(block, /*optional*/error, /*optional*/message) {
-  _throws.apply(this, [true].concat(pSlice.call(arguments)));
+  _throws(true, block, error, message);
 };
 
 // EXTENSION! This is annoying to write outside this module.
-assert.doesNotThrow = function(block, /*optional*/message) {
-  _throws.apply(this, [false].concat(pSlice.call(arguments)));
+assert.doesNotThrow = function(block, /*optional*/error, /*optional*/message) {
+  _throws(false, block, error, message);
 };
 
-assert.ifError = function(err) { if (err) {throw err;}};
+assert.ifError = function(err) { if (err) throw err; };
 
 var objectKeys = Object.keys || function (obj) {
   var keys = [];
@@ -359,6 +491,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"util/":6}],2:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
@@ -396,25 +529,40 @@ var process = module.exports = {};
 var cachedSetTimeout;
 var cachedClearTimeout;
 
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
 (function () {
     try {
-        cachedSetTimeout = setTimeout;
-    } catch (e) {
-        cachedSetTimeout = function () {
-            throw new Error('setTimeout is not defined');
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
         }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
     }
     try {
-        cachedClearTimeout = clearTimeout;
-    } catch (e) {
-        cachedClearTimeout = function () {
-            throw new Error('clearTimeout is not defined');
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
         }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
     }
 } ())
 function runTimeout(fun) {
     if (cachedSetTimeout === setTimeout) {
         //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
         return setTimeout(fun, 0);
     }
     try {
@@ -435,6 +583,11 @@ function runTimeout(fun) {
 function runClearTimeout(marker) {
     if (cachedClearTimeout === clearTimeout) {
         //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
         return clearTimeout(marker);
     }
     try {
@@ -565,19 +718,15 @@ and limitations under the License.
 /* global global, define, System, Reflect, Promise */
 var __extends;
 var __assign;
+var __rest;
 var __decorate;
 var __param;
 var __metadata;
 var __awaiter;
+var __generator;
 (function (factory) {
     var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof System === "object" && typeof System.register === "function") {
-        System.register("tslib", [], function (exporter) {
-            factory(createExporter(root, exporter));
-            return { setters: [], execute: function() { } };
-        });
-    }
-    else if (typeof define === "function" && define.amd) {
+    if (typeof define === "function" && define.amd) {
         define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
     }
     else if (typeof module === "object" && typeof module.exports === "object") {
@@ -586,14 +735,17 @@ var __awaiter;
     else {
         factory(createExporter(root));
     }
-
     function createExporter(exports, previous) {
         return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
     }
 })
 (function (exporter) {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+
     __extends = function (d, b) {
-        for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+        extendStatics(d, b);
         function __() { this.constructor = d; }
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
@@ -603,6 +755,16 @@ var __awaiter;
             s = arguments[i];
             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
+        return t;
+    };
+
+    __rest = function (s, e) {
+        var t = {};
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+            t[p] = s[p];
+        if (s != null && typeof Object.getOwnPropertySymbols === "function")
+            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
+                t[p[i]] = s[p[i]];
         return t;
     };
 
@@ -624,19 +786,50 @@ var __awaiter;
     __awaiter = function (thisArg, _arguments, P, generator) {
         return new (P || (P = Promise))(function (resolve, reject) {
             function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator.throw(value)); } catch (e) { reject(e); } }
+            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
             function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments)).next());
+            step((generator = generator.apply(thisArg, _arguments || [])).next());
         });
+    };
+
+    __generator = function (thisArg, body) {
+        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
+        return { next: verb(0), "throw": verb(1), "return": verb(2) };
+        function verb(n) { return function (v) { return step([n, v]); }; }
+        function step(op) {
+            if (f) throw new TypeError("Generator is already executing.");
+            while (_) try {
+                if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
+                if (y = 0, t) op = [0, t.value];
+                switch (op[0]) {
+                    case 0: case 1: t = op; break;
+                    case 4: _.label++; return { value: op[1], done: false };
+                    case 5: _.label++; y = op[1]; op = [0]; continue;
+                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                    default:
+                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                        if (t[2]) _.ops.pop();
+                        _.trys.pop(); continue;
+                }
+                op = body.call(thisArg, _);
+            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+        }
     };
 
     exporter("__extends", __extends);
     exporter("__assign", __assign);
+    exporter("__rest", __rest);
     exporter("__decorate", __decorate);
     exporter("__param", __param);
     exporter("__metadata", __metadata);
     exporter("__awaiter", __awaiter);
+    exporter("__generator", __generator);
 });
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],5:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
@@ -1238,11 +1431,11 @@ function hasOwnProperty(obj, prop) {
 },{"./support/isBuffer":5,"_process":3,"inherits":2}],7:[function(require,module,exports){
 "use strict";function destroy(e){return function(){return e.destroy().then(debug("example:destroy:done")).catch(debug("example:destroy:err"))}}var src_1=require("../../src"),debug=require("debug"),PouchDB=require("pouchdb-browser");debug.enable("example:*,rx-pouchdb:*");var db=new PouchDB("sids"),sids=src_1.default(db,{read:{include_docs:!0}}),docs=[{_id:"hubbard-rob_monty-on-the-run",title:"Monty on the Run",author:"Rob Hubbard",release:"1985"},[{_id:"hubbard-rob_sanxion",title:"Sanxion",author:"Rob Hubbard",release:"1986"},{_id:"tel-jeroen_ikari-union",title:"Ikari Union",author:"Jeroen Tel",release:"1987"}]],refs=sids.write(docs);sids.read(refs).subscribe(debug("example:read:next"),destroy(db),destroy(db));
 },{"../../src":10,"debug":undefined,"pouchdb-browser":undefined}],8:[function(require,module,exports){
-"use strict";function coreDbIoKeyFor(e){return!e||utils_1.isString(e._id)?"unit":"bulk"}function isPouchDbLike(e){return utils_1.isObject(e)&&["get","put","allDocs","bulkDocs"].every(function(r){return utils_1.isFunction(e[r])})}function isValidDocRefOrRevs(e){return isValidDocRef(e)&&(!e._revs||utils_1.isString(e._revs)||Array.isArray(e._revs))}function isValidDocRef(e){return isValidDocId(e)&&(!e._rev||utils_1.isString(e._rev))}function isValidDocId(e){return utils_1.isObject(e)&&utils_1.isString(e._id)}function isValidDocRefArray(e){return Array.isArray(e)&&e.every(function(e){return isValidDocRef(e)})}function isValidDocIdRange(e){return utils_1.isObject(e)&&utils_1.isString(e.startkey)&&utils_1.isString(e.endkey)}function unitOptsFrom(e){return utils_1.isString(e._rev)?{rev:e._rev}:{revs:e._revs}}function bulkOptsFrom(e){return Array.isArray(e)?{keys:e.map(function(e){return e._id})}:e}function toDocRefs(e){return e.map(toDocRef)}function toDocRef(e){return e.ok?{_id:e.id,_rev:e.rev}:e}function docsFromRevs(e){return Array.isArray(e)?e.map(function(e){return e.ok}):e}var Promise=require("bluebird"),assert=require("assert"),tslib_1=require("tslib"),utils_1=require("./utils"),CoreDbIoClass=function(){function e(e){this.db=e}return Object.defineProperty(e,"types",{get:function(){return{write:CoreDbWriteClass,read:CoreDbReadClass}},enumerable:!0,configurable:!0}),e.prototype.access=function(e){var r=this,t=coreDbIoKeyFor(e);return Promise.try(function(){return r[t](e)})},e.newInstance=function(r){return assert(isPouchDbLike(r.db),"invalid PouchDB instance"),new e.types[r.type](r.db,r.opts)},e.isCoreDbIoLike=function(e){return utils_1.isObject(e)&&utils_1.isFunction(e.access)},e}(),CoreDbWriteClass=function(e){function r(r,t){e.call(this,r),this.spec=t}return __extends(r,e),r.prototype.unit=function(e){return assert(isValidDocRef(e),"invalid document"),this.db.put(e,this.spec).then(toDocRef)},r.prototype.bulk=function(e){return assert(isValidDocRefArray(e),"invalid document"),this.db.bulkDocs(e,this.spec).then(toDocRefs)},r}(CoreDbIoClass),CoreDbReadClass=function(e){function r(r,t){e.call(this,r),this.spec=t}return __extends(r,e),r.prototype.unit=function(e){assert(isValidDocRefOrRevs(e),"invalid document reference");var r=tslib_1.__assign({},this.spec,unitOptsFrom(e));return this.db.get(e._id,r).then(docsFromRevs)},r.prototype.bulk=function(e){assert(isValidDocRefArray(e)||isValidDocIdRange(e),"invalid document reference");var r=tslib_1.__assign({},this.spec,bulkOptsFrom(e));return this.db.allDocs(r).then(function(e){return e.rows.map(function(e){return e.doc})})},r}(CoreDbIoClass);exports.isCoreDbIoLike=CoreDbIoClass.isCoreDbIoLike;var newCoreDbIo=CoreDbIoClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=newCoreDbIo;
+"use strict";function coreDbIoKeyFor(e){return!e||utils_1.isString(e._id)?"unit":"bulk"}function isPouchDbLike(e){return utils_1.isObject(e)&&["get","put","allDocs","bulkDocs"].every(function(r){return utils_1.isFunction(e[r])})}function isValidDocRefOrRevs(e){return isValidDocRef(e)&&(!e._revs||utils_1.isString(e._revs)||Array.isArray(e._revs))}function isValidDocRef(e){return isValidDocId(e)&&(!e._rev||utils_1.isString(e._rev))}function isValidDocId(e){return utils_1.isObject(e)&&utils_1.isString(e._id)}function isValidDocRefArray(e){return Array.isArray(e)&&e.every(function(e){return isValidDocRef(e)})}function isValidDocIdRange(e){return utils_1.isObject(e)&&utils_1.isString(e.startkey)&&utils_1.isString(e.endkey)}function unitOptsFrom(e){return utils_1.isString(e._rev)?{rev:e._rev}:{revs:e._revs}}function bulkOptsFrom(e){return Array.isArray(e)?{keys:e.map(function(e){return e._id})}:e}function toDocRefs(e){return e.map(toDocRef)}function toDocRef(e){return e.ok?{_id:e.id,_rev:e.rev}:e}function docsFromRevs(e){return Array.isArray(e)?e.map(function(e){return e.ok}):e}var Promise=require("bluebird"),assert=require("assert"),tslib_1=require("tslib"),utils_1=require("./utils"),CoreDbIoClass=function(){function e(e){this.db=e}return Object.defineProperty(e,"factories",{get:function(){return{write:CoreDbWriteClass.newInstance,read:CoreDbReadClass.newInstance}},enumerable:!0,configurable:!0}),e.prototype.access=function(e){var r=coreDbIoKeyFor(e),t=this[r].bind(this);return Promise.try(function(){return t(e)})},e}();CoreDbIoClass.newInstance=function(e){assert(isPouchDbLike(e.db),"invalid PouchDB instance");var r=CoreDbIoClass.factories[e.type];return r(e)},CoreDbIoClass.isCoreDbIoLike=function(e){return utils_1.isObject(e)&&utils_1.isFunction(e.access)};var CoreDbWriteClass=function(e){function r(r,t){var i=e.call(this,r)||this;return i.spec=t,i}return __extends(r,e),r.prototype.unit=function(e){return assert(isValidDocRef(e),"invalid document"),this.db.put(e,this.spec).then(toDocRef)},r.prototype.bulk=function(e){return assert(isValidDocRefArray(e),"invalid document"),this.db.bulkDocs(e,this.spec).then(toDocRefs)},r}(CoreDbIoClass);CoreDbWriteClass.newInstance=function(e){return new CoreDbWriteClass(e.db,e.opts)};var CoreDbReadClass=function(e){function r(r,t){var i=e.call(this,r)||this;return i.spec=t,i}return __extends(r,e),r.prototype.unit=function(e){assert(isValidDocRefOrRevs(e),"invalid document reference");var r=tslib_1.__assign({},this.spec,unitOptsFrom(e));return this.db.get(e._id,r).then(docsFromRevs)},r.prototype.bulk=function(e){assert(isValidDocRefArray(e)||isValidDocIdRange(e),"invalid document reference");var r=tslib_1.__assign({},this.spec,bulkOptsFrom(e));return this.db.allDocs(r).then(function(e){return e.rows.map(function(e){return e.doc})})},r}(CoreDbIoClass);CoreDbReadClass.newInstance=function(e){return new CoreDbReadClass(e.db,e.opts)},exports.isCoreDbIoLike=CoreDbIoClass.isCoreDbIoLike;var newCoreDbIo=CoreDbIoClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=newCoreDbIo;
 },{"./utils":11,"assert":1,"bluebird":undefined,"tslib":4}],9:[function(require,module,exports){
-"use strict";function getCoreDbIo(e,r,o){return core_db_io_1.isCoreDbIoLike(o)?o:core_db_io_1.default({db:e,type:r,opts:o})}var rxjs_1=require("@reactivex%2Frxjs"),core_db_io_1=require("./core-db-io"),utils_1=require("./utils"),DbIoClass=function(){function e(e){this.coreDbIo=e}return e.prototype.write=function(e){return rxjs_1.Observable.fromPromise(this.coreDbIo.write.access(e))},e.prototype.read=function(e){return rxjs_1.Observable.fromPromise(this.coreDbIo.read.access(e))},e.newInstance=function(r,o){var t={write:getCoreDbIo(r,"write",o.coreDbIo||o.write),read:getCoreDbIo(r,"read",o.coreDbIo||o.read)};return new e(t)},e.isDbIoLike=function(e){return utils_1.isObject(e)&&utils_1.isFunction(e.write)&&utils_1.isFunction(e.read)},e}();exports.isDbIoLike=DbIoClass.isDbIoLike;var newDbIo=DbIoClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=newDbIo;
+"use strict";function getCoreDbIo(e,r,o){return core_db_io_1.isCoreDbIoLike(o)?o:core_db_io_1.default({db:e,type:r,opts:o})}var rxjs_1=require("@reactivex%2Frxjs"),core_db_io_1=require("./core-db-io"),utils_1=require("./utils"),DbIoClass=function(){function e(e){this.coreDbIo=e}return e.prototype.write=function(e){return rxjs_1.Observable.fromPromise(Promise.resolve(this.coreDbIo.write.access(e)))},e.prototype.read=function(e){return rxjs_1.Observable.fromPromise(Promise.resolve(this.coreDbIo.read.access(e)))},e}();DbIoClass.newInstance=function(e,r){var o={write:getCoreDbIo(e,"write",r.coreDbIo||r.write),read:getCoreDbIo(e,"read",r.coreDbIo||r.read)};return new DbIoClass(o)},DbIoClass.isDbIoLike=function(e){return utils_1.isObject(e)&&utils_1.isFunction(e.write)&&utils_1.isFunction(e.read)},exports.isDbIoLike=DbIoClass.isDbIoLike;var newDbIo=DbIoClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=newDbIo;
 },{"./core-db-io":8,"./utils":11,"@reactivex%2Frxjs":undefined}],10:[function(require,module,exports){
-"use strict";function isValidFactoryOpts(e){return!e||utils_1.isObject(e)&&(!e.dbIo||db_io_1.isDbIoLike(e.dbIo))}function dbIoFactorySpecFrom(e){return{read:tslib_1.__assign({},RxPouchDbClass.newInstance.defaults.read,e&&e.read),write:tslib_1.__assign({},RxPouchDbClass.newInstance.defaults.write,e&&e.write)}}function toObservable(e){try{return rxjs_1.Observable.from(e)}catch(e){return rxjs_1.Observable.throw(e)}}var Promise=require("bluebird"),rxjs_1=require("@reactivex%2Frxjs"),assert=require("assert"),tslib_1=require("tslib"),db_io_1=require("./db-io"),utils_1=require("./utils"),RxPouchDbClass=function(){function e(e){this.dbIo=e}return e.prototype.write=function(e){return this.access("write",e)},e.prototype.read=function(e){return this.access("read",e)},e.prototype.access=function(e,r){var t=toObservable(r).do(utils_1.logRx("rx-pouchdb:"+e+":src"));return this.dbIo.switchMap(function(r){return t.concatMap(function(t){return r[e](t)})}).do(utils_1.logRx("rx-pouchdb:"+e))},e.newInstance=function(r,t){assert(utils_1.isObject(r)&&isValidFactoryOpts(t),"invalid argument");var s=t&&t.dbIo?Promise.resolve(t.dbIo):Promise.try(function(){return db_io_1.default(r,dbIoFactorySpecFrom(t))});return new e(rxjs_1.Observable.from(s))},e}();RxPouchDbClass.newInstance.defaults={read:{revs:!1,revs_info:!1,conflicts:!1,attachments:!1,binary:!1,include_docs:!1},write:{}};var getRxPouchDb=RxPouchDbClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=getRxPouchDb;
+"use strict";function isValidFactoryOpts(e){return!e||utils_1.isObject(e)&&(!e.dbIo||db_io_1.isDbIoLike(e.dbIo))}function dbIoFactorySpecFrom(e){return{read:tslib_1.__assign({},RxPouchDbClass.newInstance.defaults.read,e&&e.read),write:tslib_1.__assign({},RxPouchDbClass.newInstance.defaults.write,e&&e.write)}}function toObservable(e){try{return rxjs_1.Observable.from(e)}catch(e){return rxjs_1.Observable.throw(e)}}var Promise=require("bluebird"),rxjs_1=require("@reactivex%2Frxjs"),assert=require("assert"),tslib_1=require("tslib"),db_io_1=require("./db-io"),utils_1=require("./utils"),RxPouchDbClass=function(){function e(e){this.dbIo=e}return e.prototype.write=function(e){return this.access("write",e)},e.prototype.read=function(e){return this.access("read",e)},e.prototype.access=function(e,r){var t=toObservable(r).do(utils_1.logRx("rx-pouchdb:"+e+":src"));return this.dbIo.switchMap(function(r){return t.concatMap(function(t){return r[e](t)})}).do(utils_1.logRx("rx-pouchdb:"+e))},e}();RxPouchDbClass.newInstance=function(e,r){assert(utils_1.isObject(e)&&isValidFactoryOpts(r),"invalid argument");var t=r&&r.dbIo?Promise.resolve(r.dbIo):Promise.try(function(){return db_io_1.default(e,dbIoFactorySpecFrom(r))});return new RxPouchDbClass(rxjs_1.Observable.from(t))},RxPouchDbClass.newInstance.defaults={read:{revs:!1,revs_info:!1,conflicts:!1,attachments:!1,binary:!1,include_docs:!1},write:{}};var getRxPouchDb=RxPouchDbClass.newInstance;Object.defineProperty(exports,"__esModule",{value:!0}),exports.default=getRxPouchDb;
 },{"./db-io":9,"./utils":11,"@reactivex%2Frxjs":undefined,"assert":1,"bluebird":undefined,"tslib":4}],11:[function(require,module,exports){
 "use strict";function isObject(t){return!!t&&"object"==typeof t}function isFunction(t){return"function"==typeof t}function isString(t){return"string"==typeof t}function logRx(t){return{next:debug(t+":next"),error:debug(t+":err"),complete:function(){return debug(t+":done")("")}}}var debug=require("debug");exports.isObject=isObject,exports.isFunction=isFunction,exports.isString=isString,exports.logRx=logRx;
 

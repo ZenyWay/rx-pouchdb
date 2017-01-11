@@ -7,16 +7,16 @@
 thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
-# <a name="api"></a> API v1.0.1 experimental
+# <a name="api"></a> API v1.0 experimental
 `ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
 Coded in `Typescript 2`.
 
 ## specs
-run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.1-experimental/spec/web/index.html)
+run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.2-experimental/spec/web/index.html)
 in your browser.
 
 ## example
-a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.1-experimental/spec/example/index.html)
+a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.2-experimental/spec/example/index.html)
 in the browser console,
 or by cloning this repository and running the following commands from a terminal:
 ```bash
@@ -55,10 +55,10 @@ const docs = [{
 }]]
 
 // write docs to db
-const refs = sids.write(docs)
+const ref$ = sids.write(docs)
 
 // read docs from db
-sids.read(refs)
+sids.read(ref$)
 .subscribe(debug('example:read:next'), destroy(db), destroy(db))
 
 function destroy (db: any): () => void {

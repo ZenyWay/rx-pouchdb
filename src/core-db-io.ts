@@ -85,16 +85,18 @@ export interface CoreDbIoDuckTypable {
  * @private
  */
 abstract class CoreDbIoClass implements CoreDbIo {
-  static get types () {
+  static get factories () {
     return {
-      write: CoreDbWriteClass,
-      read: CoreDbReadClass
+      write: CoreDbWriteClass.newInstance,
+      read: CoreDbReadClass.newInstance
     }
   }
   static newInstance = <CoreDbIoFactory> function (spec: CoreDbIoSpec): CoreDbIo {
     assert(isPouchDbLike(spec.db), 'invalid PouchDB instance')
-    return new CoreDbIoClass.types[spec.type](spec.db, spec.opts)
+    const newInstance =  CoreDbIoClass.factories[spec.type]
+    return newInstance(spec)
   }
+
   static isCoreDbIoLike: CoreDbIoDuckTypable =
   function (val?: any): val is CoreDbIo {
     return isObject(val) && isFunction(val.access)
@@ -102,7 +104,8 @@ abstract class CoreDbIoClass implements CoreDbIo {
 
   access (src: DocRef[]|DocIdRange|DocRevs|DocRef): Promise<DocRef[]|DocRef> {
     const key = coreDbIoKeyFor(src)
-    return Promise.try(() => <Promise<DocRef[]|DocRef>> this[key](src))
+    const iomethod = this[key].bind(this)
+    return Promise.try(() => <Promise<DocRef[]|DocRef>> iomethod(src))
   }
 
   protected abstract unit (src: DocRef|DocRevs): Promise<DocRef[]|DocRef>;
@@ -113,6 +116,10 @@ abstract class CoreDbIoClass implements CoreDbIo {
 }
 
 class CoreDbWriteClass extends CoreDbIoClass {
+  static newInstance = <CoreDbIoFactory> function (spec: CoreDbIoSpec): CoreDbIo {
+    return new CoreDbWriteClass(spec.db, spec.opts)
+  }
+
   unit (doc: DocRef): Promise<DocRef> {
     assert(isValidDocRef(doc), 'invalid document')
     return this.db.put(doc, this.spec)
@@ -131,6 +138,10 @@ class CoreDbWriteClass extends CoreDbIoClass {
 }
 
 class CoreDbReadClass extends CoreDbIoClass {
+  static newInstance = <CoreDbIoFactory> function (spec: CoreDbIoSpec): CoreDbIo {
+    return new CoreDbReadClass(spec.db, spec.opts)
+  }
+
   unit (ref: DocRef|DocRevs): Promise<DocRef[]|DocRef> {
     assert(isValidDocRefOrRevs(ref), 'invalid document reference')
     const opts = assign({}, this.spec, unitOptsFrom(ref))
@@ -177,12 +188,12 @@ function isPouchDbLike (val: any): boolean {
 }
 
 function isValidDocRefOrRevs (val: any): val is DocRef {
-  return isValidDocRef(val) &&
-  (!val._revs || isString(val._revs) || Array.isArray(val._revs))
+  return isValidDocRef(val)
+  && (!(<any>val)._revs || isString((<any>val)._revs) || Array.isArray((<any>val)._revs))
 }
 
 function isValidDocRef (val: any): val is DocRef {
-  return isValidDocId(val) && (!val._rev || isString(val._rev))
+  return isValidDocId(val) && (!(<any>val)._rev || isString((<any>val)._rev))
 }
 
 function isValidDocId (val: any): val is DocId {
