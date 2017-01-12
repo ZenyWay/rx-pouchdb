@@ -187,24 +187,24 @@ function isPouchDbLike (val: any): boolean {
   .every(key => isFunction(val[key]))
 }
 
-function isValidDocRefOrRevs (val: any): val is DocRef {
+function isValidDocRefOrRevs <R extends DocRef,DocRevs>(val: any): val is R {
   return isValidDocRef(val)
   && (!(<any>val)._revs || isString((<any>val)._revs) || Array.isArray((<any>val)._revs))
 }
 
-function isValidDocRef (val: any): val is DocRef {
-  return isValidDocId(val) && (!(<any>val)._rev || isString((<any>val)._rev))
+function isValidDocRef <R extends DocRef>(val: any): val is R {
+  return isValidDocId<R>(val) && (!val._rev || isString(val._rev))
 }
 
-function isValidDocId (val: any): val is DocId {
+function isValidDocId <I extends DocId>(val: any): val is I {
   return isObject(val) && isString(val._id)
 }
 
-function isValidDocRefArray (val: any): val is DocRef[] {
+function isValidDocRefArray <A extends DocRef[]>(val: any): val is A {
   return Array.isArray(val) && val.every((val: any) => isValidDocRef(val))
 }
 
-function isValidDocIdRange (val: any) : val is DocIdRange {
+function isValidDocIdRange <R extends DocIdRange>(val: any) : val is R {
   return isObject(val) && isString(val.startkey) && isString(val.endkey)
 }
 
