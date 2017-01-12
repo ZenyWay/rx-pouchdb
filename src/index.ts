@@ -13,7 +13,7 @@
  */
 ;
 import Promise = require('bluebird')
-import { Observable } from '@reactivex/rxjs'
+import { Observable } from 'rxjs'
 
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
@@ -336,7 +336,6 @@ class RxPouchDbClass implements RxPouchDb {
   static newInstance = <RxPouchDbFactory>
   function (db: any, opts?: RxPouchDbFactoryOpts): RxPouchDb {
     assert(isObject(db) && isValidFactoryOpts(opts), 'invalid argument')
-
     const dbIo = opts && opts.dbIo ? Promise.resolve(opts.dbIo)
     : Promise.try(() => newDbIo(db, dbIoFactorySpecFrom(opts)))
 

@@ -12,7 +12,7 @@
  * Limitations under the License.
  */
 ;
-import { Observable } from '@reactivex/rxjs'
+import { Observable } from 'rxjs'
 import { WriteOpts, ReadOpts, DocRef, DocIdRange, DocRevs, DocId } from './'
 import newCoreDbIo, { CoreDbIo, isCoreDbIoLike } from './core-db-io'
 import { logRx, isObject, isFunction } from './utils'

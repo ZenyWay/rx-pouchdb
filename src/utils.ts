@@ -12,7 +12,7 @@
  * Limitations under the License.
  */
 ;
-import { Observer } from '@reactivex/rxjs'
+import { Observer } from 'rxjs' // only using type
 import debug = require('debug')
 
 /**

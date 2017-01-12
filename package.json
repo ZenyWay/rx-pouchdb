@@ -1,6 +1,6 @@
 {
   "name": "rx-pouchdb",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "example": "npm run example:bundle && npm run example:serve",
     "example:serve": "http-server -c-1 -i -e html -o -p 6510 spec/example",
     "preexample:bundle": "rimraf spec/example/*.js",
-    "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -t aliasify -t uglifyify --exclude pouchdb-browser --exclude '@reactivex%2Frxjs' --exclude bluebird --exclude debug -o spec/example/index.js",
+    "example:bundle": "browserify spec/example/index.ts -p [ tsify --project spec/example ] -t uglifyify --exclude pouchdb-browser --exclude rxjs --exclude bluebird --exclude debug --exclude assert --exclude tslib -o spec/example/index.js",
     "prepublish": "npm run dist",
     "pretest": "mkdirp spec/reports && rimraf spec/reports/*",
     "test": "karma start spec/karma.conf.js --single-run",
@@ -24,7 +24,7 @@
     "test:ci": "karma start spec/karma-coverage.conf.js --single-run && remap-istanbul -i spec/reports/coverage/chrom*/coverage.json -o spec/reports/coverage/lcov.info -t lcovonly",
     "test:web:serve": "http-server -c-1 -o -p 6510 spec/web",
     "pretest:web": "rimraf spec/web/*.js",
-    "test:web": "browserify spec/*.spec.ts -p [ tsify --project spec ] -t aliasify -t uglifyify --exclude '@reactivex%2Frxjs' --exclude bluebird --exclude debug -o spec/web/index.spec.js && npm run test:web:serve"
+    "test:web": "browserify spec/*.spec.ts -p [ tsify --project spec ] -t uglifyify --exclude rxjs --exclude bluebird --exclude debug --exclude assert --exclude tslib -o spec/web/index.spec.js && npm run test:web:serve"
   },
   "repository": {
     "type": "git",
@@ -48,17 +48,16 @@
   },
   "homepage": "https://github.com/zenyway/rx-pouchdb#readme",
   "dependencies": {
-    "@reactivex/rxjs": "^5.0.3",
     "@types/bluebird": "^3.0.37",
     "@types/debug": "0.0.29",
     "bluebird": "^3.4.7",
     "debug": "^2.6.0",
+    "rxjs": "^5.0.3",
     "tslib": "^1.5.0"
   },
   "devDependencies": {
     "@types/jasmine": "^2.5.40",
     "@types/node": "^7.0.0",
-    "aliasify": "^2.1.0",
     "browserify": "^13.3.0",
     "browserify-istanbul": "^2.0.0",
     "coveralls": "^2.11.15",
