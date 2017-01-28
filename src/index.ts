@@ -365,10 +365,12 @@ class RxPouchDbClass implements RxPouchDb {
   : Observable<DocRef[]|DocRef> {
     const _src: Observable<D> = toObservable(src)
     .do(logRx(`rx-pouchdb:${ioKey}:src`))
+    .share()
 
     return this.dbIo
     .switchMap(dbIo => _src.concatMap(src => (<DbIoMethod> dbIo[ioKey])(src)))
     .do(logRx(`rx-pouchdb:${ioKey}`))
+    .share()
   }
 
   constructor (private dbIo: Observable<DbIo>) {}
