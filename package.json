@@ -1,6 +1,6 @@
 {
   "name": "rx-pouchdb",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

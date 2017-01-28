@@ -40,15 +40,28 @@ const docs = [{
   release: '1987'
 }]]
 
-// write docs to db
-const refs = sids.write(docs)
+const refs = docs.map(function getId (doc: any): any {
+  return Array.isArray(doc) ? doc.map(getId) : { _id: doc._id }
+})
 
-// read docs from db
-sids.read(refs)
-.subscribe(debug('example:read:next'), destroy(db), destroy(db))
+// write docs to vault
+const write$ = sids.write(docs)
 
-function destroy (db: any): () => void {
-  return () => db.destroy()
-  .then(debug('example:destroy:done'))
-  .catch(debug('example:destroy:err'))
-}
+// read docs from vault
+const read$ = sids.read(refs)
+
+// search Rob Hubbard tunes
+const search$ = sids.read([{
+  startkey: 'hubbard-',
+  endkey: 'hubbard-\uffff'
+}])
+
+write$.forEach(debug('example:write:'))
+.catch(debug('example:write:error:'))
+.then(() => read$.forEach(debug('example:read:')))
+.catch(debug('example:read:error:'))
+.then(() => search$.forEach(debug('example:search:')))
+.catch(debug('example:search:error:'))
+.then(() => db.destroy())
+.then(debug('example:destroy:done'))
+.catch(debug('example:destroy:error:'))

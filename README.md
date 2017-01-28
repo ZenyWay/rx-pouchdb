@@ -7,16 +7,8 @@
 thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
-# <a name="api"></a> API v1.0 experimental
-`ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
-Coded in `Typescript 2`.
-
-## specs
-run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.4-experimental/spec/web/index.html)
-in your browser.
-
 ## example
-a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.0.4-experimental/spec/example/index.html)
+a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.0-experimental/spec/example/index.html)
 in the browser console,
 or by cloning this repository and running the following commands from a terminal:
 ```bash
@@ -54,25 +46,45 @@ const docs = [{
   release: '1987'
 }]]
 
-// write docs to db
-const ref$ = sids.write(docs)
+const refs = docs.map(function getId (doc: any): any {
+  return Array.isArray(doc) ? doc.map(getId) : { _id: doc._id }
+})
 
-// read docs from db
-sids.read(ref$)
-.subscribe(debug('example:read:next'), destroy(db), destroy(db))
+// write docs to vault
+const write$ = sids.write(docs)
 
-function destroy (db: any): () => void {
-  return () => db.destroy()
-  .then(debug('example:destroy:done'))
-  .catch(debug('example:destroy:err'))
-}
+// read docs from vault
+const read$ = sids.read(refs)
+
+// search Rob Hubbard tunes
+const search$ = sids.read([{
+  startkey: 'hubbard-',
+  endkey: 'hubbard-\uffff'
+}])
+
+write$.forEach(debug('example:write:'))
+.catch(debug('example:write:error:'))
+.then(() => read$.forEach(debug('example:read:')))
+.catch(debug('example:read:error:'))
+.then(() => search$.forEach(debug('example:search:')))
+.catch(debug('example:search:error:'))
+.then(() => db.destroy())
+.then(debug('example:destroy:done'))
+.catch(debug('example:destroy:error:'))
 ```
+
+## <a name="api"></a> API v1.0 experimental
+`ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
+Coded in `Typescript 2`.
+
+run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.0-experimental/spec/web/index.html)
+in your browser.
 
 # <a name="contributing"></a> CONTRIBUTING
 see the [contribution guidelines](./CONTRIBUTING.md)
 
 # <a name="license"></a> LICENSE
-Copyright 2016 Stéphane M. Catala
+Copyright 2017 Stéphane M. Catala
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
