@@ -1,5 +1,5 @@
 /**
- * Copyright 2016 Stephane M. Catala
+ * Copyright 2017 Stephane M. Catala
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
  * Limitations under the License.
  */
 ;
-import newRxPouchDb from '../../src'
+import newRxPouchDb, { DocId, VersionedDoc } from '../../src'
 import debug = require('debug')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 debug.enable('example:*,rx-pouchdb:*') // rx-pouchdb uses `debug`
@@ -40,9 +40,12 @@ const docs = [{
   release: '1987'
 }]]
 
-const refs = docs.map(function getId (doc: any): any {
-  return Array.isArray(doc) ? doc.map(getId) : { _id: doc._id }
-})
+function getId <D extends VersionedDoc>(doc: D): DocId
+function getId <D extends VersionedDoc>(doc: D[]|D) {
+  return Array.isArray(doc) ? doc.map(getId) : <DocId>{ _id: doc._id }
+}
+
+const refs = docs.map(getId)
 
 // write docs to vault
 const write$ = sids.write(docs)

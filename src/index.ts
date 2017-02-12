@@ -1,5 +1,5 @@
 /**
- * Copyright 2016 Stephane M. Catala
+ * Copyright 2017 Stephane M. Catala
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ;
 import Promise = require('bluebird')
 import { Observable } from 'rxjs'
-
+import { Subscribable } from 'rxjs/Observable'
 import assert = require('assert')
 import { __assign as assign } from 'tslib'
 
@@ -90,8 +90,12 @@ export interface RxPouchDb {
    * in the same order.
    * @error {Error} when storing a document fails // TODO provide more detail on possible storage errors
    */
+  write <D extends VersionedDoc>
+  (docs: Subscribable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef>
+  write <D extends VersionedDoc>
+  (docs: Subscribable<D[]>|PromiseLike<D[]>|ArrayLike<D[]>): Observable<DocRef[]>
   write <D extends VersionedDoc[]|VersionedDoc>
-  (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef>
+  (docs: Subscribable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef>
   /**
    * @public
    * @method read
@@ -128,9 +132,16 @@ export interface RxPouchDb {
    * or else as specified by the {DocIdRange} range.
    * @error {Error} when retrieving a document fails // TODO provide more detail on possible fetch errors
    */
-  read <R extends DocRef[]|DocIdRange|DocRevs|DocRef,
-  D extends VersionedDoc|(VersionedDoc&DocRevStatus)>
-  (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>): Observable<D[]|D>
+  read <R extends DocRef, D extends VersionedDoc>
+  (refs: Subscribable<R>|PromiseLike<R>|ArrayLike<R>): Observable<D>
+  read <R extends DocRef, D extends VersionedDoc>
+  (refs: Subscribable<R[]>|PromiseLike<R[]>|ArrayLike<R[]>): Observable<D[]>
+  read <R extends DocIdRange, D extends VersionedDoc>
+  (refs: Subscribable<R>|PromiseLike<R>|ArrayLike<R>): Observable<D[]>
+  read <R extends DocRevs, D extends VersionedDoc&DocRevStatus>
+  (refs: Subscribable<R>|PromiseLike<R>|ArrayLike<R>): Observable<D[]>
+  read <R extends DocRef[]|DocIdRange|DocRevs|DocRef>
+  (refs: Subscribable<R>|PromiseLike<R>|ArrayLike<R>): Observable<DocRef[]|DocRef>
 }
 
 export interface DocRevStatus {
@@ -347,7 +358,7 @@ class RxPouchDbClass implements RxPouchDb {
    * @see {RxPouchDb#write}
    */
   write <D extends VersionedDoc[]|VersionedDoc>
-  (docs: Observable<D>|PromiseLike<D>|ArrayLike<D>): Observable<DocRef[]|DocRef> {
+  (docs: Subscribable<D>|PromiseLike<D>|ArrayLike<D>) {
     return this.access('write', docs)
   }
 
@@ -356,12 +367,12 @@ class RxPouchDbClass implements RxPouchDb {
    * @see {RxPouchDb#read}
    */
   read <R extends DocRef[]|DocIdRange|DocRevs|DocRef>
-  (refs: Observable<R>|PromiseLike<R>|ArrayLike<R>): Observable<DocRef[]|DocRef> {
+  (refs: Subscribable<R>|PromiseLike<R>|ArrayLike<R>) {
     return this.access('read', refs)
   }
 
   private access <D extends DocRef[]|DocIdRange|DocRevs|DocRef>
-  (ioKey: 'write'|'read', src: Observable<D>|PromiseLike<D>|ArrayLike<D>)
+  (ioKey: 'write'|'read', src: Subscribable<D>|PromiseLike<D>|ArrayLike<D>)
   : Observable<DocRef[]|DocRef> {
     const _src: Observable<D> = toObservable(src)
     .do(logRx(`rx-pouchdb:${ioKey}:src`))
@@ -429,12 +440,12 @@ interface DbIoMethod {
  * @param {Observable<T>|PromiseLike<T>|ArrayLike<T>}
  * @return {Observable<T>}
  */
-function toObservable <T> (val: Observable<T>|PromiseLike<T>|ArrayLike<T>):
+function toObservable <T> (val: Subscribable<T>|PromiseLike<T>|ArrayLike<T>):
 Observable<T> {
 	try {
-  	return Observable.from<T>(<Observable<T>|Promise<T>|ArrayLike<T>> val)
+  	return Observable.from<T>(val)
   } catch (err) {
-  	return Observable.throw(err)
+  	return Observable.throw<T>(err)
   }
 }
 

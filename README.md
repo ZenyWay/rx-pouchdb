@@ -8,7 +8,7 @@ thin RXJS abstraction layer for pouchDB with
 `read` and `write` RXJS operators.
 
 ## example
-a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.0-experimental/spec/example/index.html)
+a live version of this example can be viewed [here](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.1-experimental/spec/example/index.html)
 in the browser console,
 or by cloning this repository and running the following commands from a terminal:
 ```bash
@@ -18,7 +18,7 @@ npm run example
 the files of this example are available [in this repository](./spec/example).
 
 ```ts
-import newRxPouchDb from 'rx-pouchdb/dist'
+import newRxPouchDb, { DocId, VersionedDoc } from 'rx-pouchdb/dist'
 import debug = require('debug')
 const PouchDB = require('pouchdb-browser') // no valid type definitions for TS2
 debug.enable('example:*,rx-pouchdb:*') // rx-pouchdb uses `debug`
@@ -46,9 +46,12 @@ const docs = [{
   release: '1987'
 }]]
 
-const refs = docs.map(function getId (doc: any): any {
-  return Array.isArray(doc) ? doc.map(getId) : { _id: doc._id }
-})
+function getId <D extends VersionedDoc>(doc: D): DocId
+function getId <D extends VersionedDoc>(doc: D[]|D) {
+  return Array.isArray(doc) ? doc.map(getId) : <DocId>{ _id: doc._id }
+}
+
+const refs = docs.map(getId)
 
 // write docs to vault
 const write$ = sids.write(docs)
@@ -77,7 +80,7 @@ write$.forEach(debug('example:write:'))
 `ES5` and [`Typescript`](http://www.typescriptlang.org/) compatible.
 Coded in `Typescript 2`.
 
-run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.0-experimental/spec/web/index.html)
+run the [unit tests](https://cdn.rawgit.com/ZenyWay/rx-pouchdb/v1.1.1-experimental/spec/web/index.html)
 in your browser.
 
 # <a name="contributing"></a> CONTRIBUTING
