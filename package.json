@@ -1,6 +1,6 @@
 {
   "name": "rx-pouchdb",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "thin RXJS abstraction layer for pouchDB: read and write RXJS operators",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -50,13 +50,13 @@
   },
   "homepage": "https://github.com/zenyway/rx-pouchdb#readme",
   "dependencies": {
+    "@types/bluebird": "^3.0.37",
     "bluebird": "^3.4.7",
     "debug": "^2.6.1",
     "rxjs": "^5.1.0",
     "tslib": "^1.5.0"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.0.37",
     "@types/debug": "0.0.29",
     "@types/jasmine": "^2.5.42",
     "@types/node": "^7.0.5",
